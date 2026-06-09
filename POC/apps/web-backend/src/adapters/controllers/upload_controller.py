@@ -87,10 +87,36 @@ class UploadController:
                     detail="Invalid causal parameter. Must be a boolean."
                 )
 
+            chunk_size = config_dict.get("chunk_size")
+            if chunk_size is not None:
+                try:
+                    chunk_size = int(chunk_size)
+                    if chunk_size <= 0:
+                        raise ValueError()
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid chunk_size. Must be a positive integer."
+                    )
+
+            left_context_frames = config_dict.get("left_context_frames")
+            if left_context_frames is not None:
+                try:
+                    left_context_frames = int(left_context_frames)
+                    if left_context_frames < 0:
+                        raise ValueError()
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid left_context_frames. Must be a non-negative integer."
+                    )
+
             decoding_config = DecodingConfig(
                 method=method,
                 beam_size=beam_size,
-                causal=causal
+                causal=causal,
+                chunk_size=chunk_size,
+                left_context_frames=left_context_frames
             )
 
         # 4. Dispatch coordinates to usecase

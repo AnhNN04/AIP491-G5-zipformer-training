@@ -110,3 +110,30 @@ async def test_controller_unreachable_asr_server(controller, mock_usecase):
         await controller.upload_and_transcribe(mock_file)
     assert exc_info.value.status_code == 503
     assert "ASR Inference Server is temporarily unreachable" in exc_info.value.detail
+
+
+@pytest.mark.anyio
+async def test_controller_invalid_chunk_size(controller):
+    mock_file = AsyncMock(spec=UploadFile)
+    mock_file.filename = "speech.wav"
+    mock_file.read.return_value = b"wav audio data"
+    
+    config_str = json.dumps({"method": "greedy_search", "chunk_size": 0})
+    with pytest.raises(HTTPException) as exc_info:
+        await controller.upload_and_transcribe(mock_file, config_str)
+    assert exc_info.value.status_code == 400
+    assert "Invalid chunk_size" in exc_info.value.detail
+
+
+@pytest.mark.anyio
+async def test_controller_invalid_left_context(controller):
+    mock_file = AsyncMock(spec=UploadFile)
+    mock_file.filename = "speech.wav"
+    mock_file.read.return_value = b"wav audio data"
+    
+    config_str = json.dumps({"method": "greedy_search", "left_context_frames": -1})
+    with pytest.raises(HTTPException) as exc_info:
+        await controller.upload_and_transcribe(mock_file, config_str)
+    assert exc_info.value.status_code == 400
+    assert "Invalid left_context_frames" in exc_info.value.detail
+
