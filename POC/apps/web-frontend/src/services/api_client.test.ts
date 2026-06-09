@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { uploadAudio, DecodingConfigInput } from './api_client'
+import { uploadAudio, type DecodingConfigInput } from './api_client'
 
 describe('api_client uploadAudio', () => {
   beforeEach(() => {

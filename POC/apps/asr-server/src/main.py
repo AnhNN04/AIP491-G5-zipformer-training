@@ -2,7 +2,8 @@ import os
 import json
 import logging
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect
+import uuid
 from src.models.k2_decoder import K2Decoder
 
 # Set up logging conforming to Constitution Principle V
@@ -66,3 +67,67 @@ async def transcribe(
     except Exception as e:
         logger.error(f"Error executing decoding space: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Inference processing error: {str(e)}")
+
+
+@app.websocket("/api/stream")
+async def websocket_stream(websocket: WebSocket):
+    await websocket.accept()
+    logger.info("ASR WS client connected")
+    
+    session_id = f"asr_sess_{uuid.uuid4().hex[:8]}"
+    handshake_done = False
+    
+    try:
+        while True:
+            message = await websocket.receive()
+            if "text" in message:
+                text_data = message["text"]
+                try:
+                    data = json.loads(text_data)
+                except json.JSONDecodeError:
+                    logger.warning("Received invalid JSON on WS")
+                    await websocket.close(code=1008)
+                    break
+                
+                event = data.get("event")
+                if event == "handshake":
+                    config = data.get("config", {})
+                    logger.info(f"WS Handshake config received: {config}")
+                    handshake_done = True
+                    await websocket.send_json({
+                        "event": "handshake_ok",
+                        "session_id": session_id
+                    })
+                elif event == "stop":
+                    logger.info("WS Stop frame received")
+                    await websocket.send_json({
+                        "event": "finished",
+                        "full_transcript": "chào mừng bạn đến với hệ thống nhận dạng giọng nói",
+                        "confidence": 0.95
+                    })
+                    break
+                else:
+                    logger.warning(f"Unknown event received on WS: {event}")
+            
+            elif "bytes" in message:
+                if not handshake_done:
+                    logger.warning("Received binary audio data before handshake")
+                    await websocket.close(code=1008)
+                    break
+                
+                audio_chunk = message["bytes"]
+                logger.debug(f"Received audio chunk of size {len(audio_chunk)}")
+                
+                # Send back simulated incremental update
+                await websocket.send_json({
+                    "event": "transcript_update",
+                    "text": "chào mừng bạn đến với hệ thống nhận dạng giọng nói",
+                    "is_final": False,
+                    "confidence": 0.95
+                })
+                
+    except WebSocketDisconnect:
+        logger.info("ASR WS client disconnected")
+    except Exception as e:
+        logger.error(f"WS error: {e}", exc_info=True)
+

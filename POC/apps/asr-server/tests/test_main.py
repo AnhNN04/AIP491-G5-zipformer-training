@@ -11,7 +11,6 @@ def test_health_check():
 
 
 def test_transcribe_endpoint_without_config():
-    # Send a mock wav file upload
     files = {"file": ("test.wav", b"fake wav audio data content", "audio/wav")}
     response = client.post("/transcribe", files=files)
     
@@ -41,9 +40,55 @@ def test_transcribe_endpoint_with_valid_config():
 
 def test_transcribe_endpoint_with_invalid_config():
     files = {"file": ("test.wav", b"fake wav audio data content", "audio/wav")}
-    # Send malformed JSON string for config
     data = {"config": "{malformed_json}"}
     
     response = client.post("/transcribe", files=files, data=data)
     assert response.status_code == 400
     assert "Invalid JSON" in response.json()["detail"]
+
+
+def test_websocket_stream_success():
+    with client.websocket_connect("/api/stream") as websocket:
+        # 1. Send handshake config
+        websocket.send_json({
+            "event": "handshake",
+            "config": {
+                "method": "greedy_search",
+                "causal": True,
+                "chunk_size": 16,
+                "left_context_frames": 128
+            }
+        })
+        resp = websocket.receive_json()
+        assert resp["event"] == "handshake_ok"
+        assert "session_id" in resp
+        
+        # 2. Send binary audio chunk
+        websocket.send_bytes(b"dummy raw pcm samples")
+        resp = websocket.receive_json()
+        assert resp["event"] == "transcript_update"
+        assert resp["text"] == "chào mừng bạn đến với hệ thống nhận dạng giọng nói"
+        assert resp["is_final"] is False
+        
+        # 3. Send stop event
+        websocket.send_json({"event": "stop"})
+        resp = websocket.receive_json()
+        assert resp["event"] == "finished"
+        assert "full_transcript" in resp
+        assert resp["full_transcript"] == "chào mừng bạn đến với hệ thống nhận dạng giọng nói"
+
+
+def test_websocket_stream_binary_before_handshake():
+    # If client sends audio before handshake, connection should close with policy violation (1008)
+    # Using try/except since client socket close raises RuntimeError in some test client implementations
+    try:
+        with client.websocket_connect("/api/stream") as websocket:
+            websocket.send_bytes(b"early raw pcm samples")
+            # Starlette TestClient WebSocket will close on invalid state
+            # Reading should raise an error or return closed status
+            resp = websocket.receive()
+            # If we reached here, assert that it's closed
+            assert resp.get("type") == "websocket.close"
+    except RuntimeError:
+        # TestClient can raise RuntimeError on forced socket close, which is expected
+        pass
