@@ -29,8 +29,8 @@
 
 - [x] T005 [P] Initialize FastAPI ASR Model Server app structure with dependencies in `apps/asr-server/pyproject.toml`
 - [x] T006 [P] Initialize FastAPI Web Backend app structure with Clean Architecture directories in `apps/web-backend/pyproject.toml`
-- [/] T007 [P] Initialize React SPA client structure with Vite, TailwindCSS, and TypeScript dependencies in `apps/web-frontend/package.json`
-- [ ] T008 Implement database engine connection lifecycle and session parameters in `apps/web-backend/src/frameworks/database.py`
+- [x] T007 [P] Initialize React SPA client structure with Vite, TailwindCSS, and TypeScript dependencies in `apps/web-frontend/package.json`
+- [x] T008 Implement database engine connection lifecycle and session parameters in `apps/web-backend/src/frameworks/database.py`
 - [ ] T009 Implement core business Domain Entities (`User`, `AudioFile`, `Transcription`, `DecodingConfig`, `DialectStats`) in `apps/web-backend/src/domain/entities.py`
 - [ ] T010 Implement abstract Repository interfaces (DB and Storage ports) in `apps/web-backend/src/domain/interfaces.py`
 - [ ] T011 Implement database schema mappings and migrations using SQLAlchemy in `apps/web-backend/src/adapters/database/sqlalchemy_models.py`
