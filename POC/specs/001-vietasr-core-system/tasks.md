@@ -81,7 +81,7 @@
 **Independent Test**: Verified by executing Websocat streaming tests as documented in `quickstart.md#43-scenario-3-real-time-websocket-streaming-p3-verification`.
 
 - [x] T025 [P] [US3] Implement bidirectional WebSocket audio chunk decoding endpoint in `apps/asr-server/src/main.py`
-- [ ] T026 [US3] Implement WebSocket stream relayer and handshake configuration mapper in `apps/web-backend/src/adapters/asr_client/websocket_client.py`
+- [x] T026 [US3] Implement WebSocket stream relayer and handshake configuration mapper in `apps/web-backend/src/adapters/asr_client/websocket_client.py`
 - [ ] T027 [US3] Implement streaming WebSocket endpoint `/api/stream` in `apps/web-backend/src/adapters/controllers/stream_controller.py`
 - [ ] T028 [P] [US3] Implement WebSocket connection client in `apps/web-frontend/src/services/websocket_client.ts`
 - [ ] T029 [US3] Implement real-time microphone streaming recorder interface in `apps/web-frontend/src/components/AudioStreamer.tsx`
