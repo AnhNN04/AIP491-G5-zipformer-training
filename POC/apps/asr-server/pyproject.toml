@@ -1,0 +1,13 @@
+[project]
+name = "asr-server"
+version = "0.1.0"
+description = "FastAPI server for loading PyTorch and k2 checkpoints for VietASR ASR inference"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.22.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-multipart>=0.0.6",
+    "websockets>=11.0.0"
+]
