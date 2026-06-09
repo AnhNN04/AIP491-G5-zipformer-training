@@ -68,7 +68,9 @@ class ASRHTTPClient(IASRClient):
                     raise ASRServerConnectionError(
                         f"ASR Inference Server at {self.server_url} is temporarily unreachable."
                     ) from e
-                # Backoff before retrying
-                await asyncio.sleep(0.5)
+                # Exponential backoff connection recovery (e.g. 0.5s, 1.0s) before next attempt
+                backoff_duration = 0.5 * (2 ** attempt)
+                logger.info(f"ASR HTTP Client: Connection recovery backing off for {backoff_duration} seconds before retry.")
+                await asyncio.sleep(backoff_duration)
         
         raise ASRServerConnectionError("ASR Inference Server request failed after all attempts.")
