@@ -47,7 +47,7 @@
 **Independent Test**: Can be validated by executing upload CURL commands as documented in `quickstart.md#41-scenario-1-batch-upload-and-audio-transcoding-p1-verification`.
 
 - [x] T013 [P] [US1] Implement ASR Client connection interface and HTTP client class in `apps/web-backend/src/adapters/asr_client/http_client.py`
-- [ ] T014 [US1] Load checkpoints and expose batch inference endpoint in `apps/asr-server/src/main.py`
+- [x] T014 [US1] Load checkpoints and expose batch inference endpoint in `apps/asr-server/src/main.py`
 - [ ] T015 [US1] Implement asynchronous FFmpeg transcoding subprocess logic in `apps/web-backend/src/usecases/audio_process.py`
 - [ ] T016 [US1] Implement TranscribeAudioUseCase coordinating file validation, transcoding, S3 uploads, ASR client requests, and repository logs in `apps/web-backend/src/usecases/transcribe.py`
 - [ ] T017 [US1] Implement upload request handler, validators, and size limits (50MB) in `apps/web-backend/src/adapters/controllers/upload_controller.py`
