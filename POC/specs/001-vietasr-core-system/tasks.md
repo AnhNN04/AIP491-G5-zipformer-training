@@ -67,8 +67,8 @@
 
 - [x] T021 [US2] Map dynamic parameters to k2 decoding search space inputs in `apps/asr-server/src/models/k2_decoder.py`
 - [x] T022 [US2] Update upload REST handler to deserialize decoding options and relay parameters to model server in `apps/web-backend/src/adapters/controllers/upload_controller.py`
-- [ ] T023 [US2] Implement ASR Config Panel UI component in `apps/web-frontend/src/components/ASRConfigPanel.tsx`
-- [ ] T024 [US2] Connect configuration panel states to the API requests in `apps/web-frontend/src/services/api_client.ts`
+- [x] T023 [US2] Implement ASR Config Panel UI component in `apps/web-frontend/src/components/ASRConfigPanel.tsx`
+- [x] T024 [US2] Connect configuration panel states to the API requests in `apps/web-frontend/src/services/api_client.ts`
 
 **Checkpoint**: User Stories 1 and 2 are fully integrated and functional.
 
