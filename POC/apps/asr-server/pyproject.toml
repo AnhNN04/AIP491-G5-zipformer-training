@@ -15,6 +15,12 @@ dependencies = [
     "soundfile>=0.14.0"
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests that require real model checkpoint files (use with ASR_CHECKPOINT_PATH and ASR_TOKENS_PATH env vars)",
+]
+
 [tool.pyright]
 extraPaths = ["."]
 
