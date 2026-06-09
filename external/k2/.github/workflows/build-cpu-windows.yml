@@ -1,0 +1,148 @@
+# Copyright      2021  Fangjun Kuang (csukuangfj@gmail.com)
+
+# See ../../LICENSE for clarification regarding multiple authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+name: build-cpu-windows
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/build-cpu-windows.yml'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'k2/csrc/**'
+      - 'k2/python/**'
+  pull_request:
+    types: [labeled]
+    paths:
+      - '.github/workflows/build-cpu-windows.yml'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'k2/csrc/**'
+      - 'k2/python/**'
+  workflow_dispatch:
+
+concurrency:
+  group: build-cpu-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  generate_build_matrix:
+    # see https://github.com/pytorch/pytorch/pull/50633
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Generating build matrix
+        id: set-matrix
+        run: |
+          # outputting for debugging purposes
+          python scripts/github_actions/generate_build_matrix.py
+          MATRIX=$(python scripts/github_actions/generate_build_matrix.py)
+          echo "::set-output name=matrix::${MATRIX}"
+
+  build-cpu-windows:
+    # see https://github.com/actions/virtual-environments/blob/win19/20210525.0/images/win/Windows2019-Readme.md
+    if: github.event.label.name == 'ready' || github.event_name == 'push'
+    needs: generate_build_matrix
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ${{ fromJson(needs.generate_build_matrix.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # see https://github.com/microsoft/setup-msbuild
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install PyTorch ${{ matrix.torch }}
+        run: |
+          pip3 install -qq torch==${{ matrix.torch }}+cpu -f https://download.pytorch.org/whl/torch_stable.html numpy
+          pip3 install -qq wheel twine dataclasses typing_extensions
+
+          python3 -m torch.utils.collect_env
+
+      - name: Display CMake version
+        run: |
+          cmake --version
+          cmake --help
+
+
+
+      - name: Build wheel
+        shell: bash
+        run: |
+          export K2_CMAKE_ARGS="-DK2_WITH_CUDA=OFF -DCMAKE_BUILD_TYPE=Release"
+          python3 setup.py bdist_wheel
+          ls -lh dist/
+          pip install ./dist/*.whl
+
+      - name: Upload Wheel
+        uses: actions/upload-artifact@v2
+        with:
+          name: torch-${{ matrix.torch }}-python-${{ matrix.python-version }}-windows-2019-cpu
+          path: dist/*.whl
+
+      - name: Configure CMake
+        shell: bash
+        env:
+          torch: ${{ matrix.torch }}
+        run: |
+          python3 ./scripts/github_actions/fix_torch.py
+          mkdir -p build_release
+          cd build_release
+          cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DK2_WITH_CUDA=OFF ..
+          ls -lh
+          cat k2/csrc/version.h
+          cat CMakeCache.txt
+
+      - name: Build k2
+        shell: bash
+        run: |
+          cd build_release
+          cmake --build . --target _k2 --config Release -- -m
+          cmake --build . --target ALL_BUILD --config Release
+          ls -lh lib/*/*
+          ls -lh bin/*/*
+
+      - name: Run tests
+        shell: bash
+        run: |
+          cd build_release
+          # disable python tests for k2host
+          ctest -C Release --output-on-failure -E host
+

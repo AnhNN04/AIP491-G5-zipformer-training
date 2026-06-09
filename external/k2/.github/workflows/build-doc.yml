@@ -1,0 +1,141 @@
+# Copyright      2021  Fangjun Kuang (csukuangfj@gmail.com)
+
+# See ../../LICENSE for clarification regarding multiple authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# refer to https://github.com/actions/starter-workflows/pull/47/files
+
+# You can access it at https://k2-fsa.github.io/k2/
+name: Generate doc
+on:
+  push:
+    branches:
+      - to-delete
+      - master
+      - doc
+      - doc-test
+      - wheels
+    paths:
+      - '.github/workflows/build-doc.yml'
+      - 'k2/csrc/**'
+      - 'k2/python/**'
+      - 'docs/**'
+
+  workflow_dispatch:
+
+concurrency:
+  group: build-doc-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # debug is faster in terms of compilation time
+  BUILD_TYPE: Debug
+
+jobs:
+  build-doc:
+    if: github.repository_owner == 'csukuangfj' || github.repository_owner == 'k2-fsa'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        torch: ["2.0.0"]
+        python-version: ["3.10"]
+    steps:
+      # refer to https://github.com/actions/checkout
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install PyTorch ${{ matrix.torch }}
+        shell: bash
+        run: |
+          sudo apt-get -qq install graphviz
+          python3 -m pip install -qq --upgrade pip
+          python3 -m pip install -qq wheel twine typing_extensions
+          python3 -m pip install -qq torch==${{ matrix.torch }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+          python3 -m pip install -qq graphviz
+
+          python3 -m pip install -qq k2==1.24.4.dev20250425+cpu.torch${{ matrix.torch }} -f https://k2-fsa.github.io/k2/cpu.html
+
+          python3 -c "import torch; print('torch version:', torch.__version__)"
+
+      - name: Configure CMake
+        if: false
+        shell: bash
+        run: |
+          pwd
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DK2_WITH_CUDA=OFF ..
+
+          cat k2/csrc/version.h
+
+      - name: Build k2
+        if: false
+        shell: bash
+        run: |
+          cd build
+          make -j2 _k2
+          pwd
+          ls -lh lib
+
+      - name: Update wheels
+        shell: bash
+        run: |
+            export K2_DIR=$PWD
+            ls -lh $K2_DIR
+
+            export GIT_LFS_SKIP_SMUDGE=1
+            git clone https://huggingface.co/csukuangfj/k2 huggingface
+            git clone https://huggingface.co/csukuangfj2/k2 huggingface2
+            cp -a huggingface2/* huggingface
+            rm -rf huggingface2
+            cd huggingface
+
+            ./run.sh
+
+            cd ..
+            rm -rf huggingface
+
+      - name: Build doc
+        shell: bash
+        run: |
+          # export PYTHONPATH=$PWD/k2/python:$PWD/build/lib:$PYTHONPATH
+          # echo "PYTHONPATH: $PYTHONPATH"
+          git status
+          cd docs
+          python3 -m pip install -r ./requirements.txt
+          python3 -m pip install "numpy<2"
+          make html
+          cp -v source/cpu.html ./build/html/
+          cp -v source/cuda.html ./build/html/
+          cp -v source/cpu-cn.html ./build/html/
+          cp -v source/cuda-cn.html ./build/html/
+          touch build/html/.nojekyll
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/build/html
+          publish_branch: gh-pages
