@@ -6,73 +6,73 @@
 
 **Status**: Draft
 
-**Input**: User description: "Bóc tách và tích hợp lõi mô hình thực tế từ thư mục ASR/ và SSL/ vào asr-server để thực hiện suy luận thật (không dùng mock) cho cả luồng HTTP REST và WebSocket Streaming."
+**Input**: User description: "Extract and integrate the real model core from the ASR/ and SSL/ folders into the asr-server to execute real inference (no mocks) for both HTTP REST and WebSocket Streaming."
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Nhận dạng giọng nói theo lô (Batch ASR) (Priority: P1)
+### User Story 1 - Batch Speech Recognition with Real Model (Priority: P1)
 
-Người dùng tải lên một tệp âm thanh (ví dụ: MP3) từ giao diện Web, hệ thống tự động lưu trữ và thực hiện chuyển đổi đặc trưng bằng mô hình Zipformer để trả về chuỗi văn bản tiếng Việt chính xác và alignments từ.
+Users upload an audio file (e.g. MP3, WAV) from the web interface, and the system automatically computes features and performs speech recognition using the real Zipformer model checkpoints, returning the correct transcript and word alignments.
 
-**Why this priority**: Đây là luồng nghiệp vụ cơ bản cốt lõi nhất của hệ thống nhận dạng giọng nói, giúp kiểm chứng mô hình chạy đúng và tương tác thành công với cơ sở dữ liệu.
+**Why this priority**: This is the core functionality of the ASR system. It validates model loading, feature extraction, and correct database logging.
 
-**Independent Test**: Có thể được kiểm chứng độc lập bằng cách gửi một tệp âm thanh WAV tiêu chuẩn qua công cụ CURL tới endpoint `/api/upload` của Web Backend Gateway, kết quả trả về văn bản nhận dạng tương đương với script `jit_pretrained.py`.
+**Independent Test**: Can be tested independently by issuing a POST upload request with a standard WAV file to the `/api/upload` endpoint, verifying that the returned transcript matches the output of `jit_pretrained.py`.
 
 **Acceptance Scenarios**:
 
-1. **Given** Người dùng đã chọn thuật toán "Greedy Search", **When** Người dùng tải lên tệp âm thanh có giọng Bắc, **Then** Hệ thống trả về văn bản nhận dạng tiếng Việt chính xác cùng thuộc tính dialect "NORTHERN" và độ tin cậy tương ứng.
-2. **Given** Người dùng đã chọn cấu hình "Modified Beam Search" với beam size = 4, **When** Gửi yêu cầu nhận dạng tệp WAV, **Then** Mô hình Zipformer thực thi giải mã theo chùm và trả về kết quả tối ưu trong thời gian thực.
+1. **Given** the user has configured "Greedy Search", **When** they upload a WAV file with Vietnamese speech, **Then** the system returns the correct transcript, a "NORTHERN" inferred dialect, and the corresponding confidence.
+2. **Given** the user has configured "Modified Beam Search" with a beam size of 4, **When** they upload a WAV file, **Then** the Zipformer model executes beam search decoding and returns the optimal text transcription.
 
 ---
 
-### User Story 2 - Nhận dạng giọng nói trực tuyến thời gian thực (Priority: P2)
+### User Story 2 - Real-Time Speech Recognition with Real Model (Priority: P2)
 
-Người dùng bật microphone từ giao diện Web và nói trực tiếp, hệ thống liên tục ghi nhận, nén dữ liệu và truyền trực tiếp qua WebSocket để hiển thị văn bản tích lũy tức thì trên màn hình.
+Users speak into their microphone on the web interface, and the client streams raw audio buffers to the server via WebSockets, receiving and rendering incremental transcript updates on the screen in real-time.
 
-**Why this priority**: Nâng cao trải nghiệm người dùng, kiểm thử khả năng xử lý bất đồng bộ, stream dữ liệu liên tục không gây nghẽn luồng (non-blocking).
+**Why this priority**: Provides low-latency feedback and verifies asynchronous stream processing and session state persistence.
 
-**Independent Test**: Kết nối WebSocket thông qua `websocat` trực tiếp tới `/api/stream` của Gateway, thực hiện gửi handshake và stream các chunk âm thanh PCM thô để nhận về các bản tin `transcript_update`.
+**Independent Test**: Can be verified by establishing a WebSocket connection to the `/api/stream` endpoint, completing the handshake configuration, and sending binary PCM chunks to receive live transcript frames.
 
 **Acceptance Scenarios**:
 
-1. **Given** Client đã hoàn tất handshake cấu hình streaming, **When** Client gửi liên tục các mảng bytes nhị phân PCM (16kHz Mono 16-bit), **Then** Hệ thống phục vụ duy trì trạng thái phiên và liên tục phản hồi văn bản tiếng Việt tương ứng.
-2. **Given** Client gửi tin nhắn "stop", **When** Kết nối vẫn hoạt động, **Then** Hệ thống hoàn tất giải mã phần đệm cuối cùng, trả về kết quả cuối "finished" và đóng kết nối.
+1. **Given** the client has successfully completed the streaming handshake, **When** the client streams raw int16 PCM chunks at 16kHz, **Then** the serving system maintains the session state and returns partial transcript updates.
+2. **Given** the client sends a "stop" event frame, **When** the connection is open, **Then** the serving system decodes the final audio frames, returns the complete transcript summary ("finished" event), and closes the connection.
 
 ---
 
 ### Edge Cases
 
-- **Mất kết nối đột ngột**: Khi client ngắt kết nối WebSocket giữa chừng mà chưa gửi frame "stop", hệ thống phục vụ phải dọn dẹp đối tượng giải mã `DecodeStream` tương ứng trong bộ nhớ để tránh rò rỉ RAM.
-- **Hết thời gian chờ handshake (Handshake Timeout)**: Nếu client kết nối WebSocket nhưng không truyền đi frame text "handshake" hợp lệ trong vòng 5.0 giây, máy chủ serving phải đóng kết nối với mã code `1008` (Policy Violation).
-- **Tham số giải mã vượt biên giới hạn**: Nếu client truyền tham số giải mã (ví dụ: `beam_size = 25` hoặc `method = "unknown"`), máy chủ phải từ chối ngay lập tức bằng lỗi HTTP 400 hoặc đóng kết nối WS tương ứng.
+- **Sudden Disconnection**: If the WebSocket client disconnects abruptly without sending the "stop" frame, the serving server MUST immediately clean up the corresponding `DecodeStream` session object from memory to prevent memory leaks.
+- **Handshake Timeout**: If the client connects but fails to transmit a valid "handshake" configuration text frame within 5.0 seconds, the server MUST close the connection with status code `1008` (Policy Violation).
+- **Out of Bounds Parameters**: If the client sends invalid decoding parameters (e.g., `beam_size = 25` or an unsupported method), the server MUST immediately reject the request with HTTP 400 or close the WebSocket connection.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: Máy chủ ASR MUST tự động nạp mô hình TorchScript JIT tại đường dẫn cấu hình `viet_iter3_pseudo_label/exp/jit_script.pt` khi khởi động.
-- **FR-002**: Máy chủ ASR MUST nạp bảng từ vựng BPE tiếng Việt từ file `viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/tokens.txt` khi khởi động để ánh xạ token ID sang chữ viết.
-- **FR-003**: Hệ thống MUST trích xuất đặc trưng Log-Mel Fbank 80 chiều bằng thư viện `torchaudio.compliance.kaldi.fbank` để đảm bảo tính độc lập và không phụ thuộc việc biên dịch thư viện C++ ngoài.
-- **FR-004**: Trình phục vụ MUST hỗ trợ trích xuất đặc trưng từ buffer byte của file WAV (cho HTTP REST) lẫn mảng raw int16 PCM (cho WebSocket Streaming).
-- **FR-005**: Đối với luồng WebSocket, máy chủ serving MUST quản lý động danh sách các đối tượng `DecodeStream` trong RAM liên kết với từng phiên `session_id` để duy trì trạng thái ẩn (hidden states) giữa các chunk âm thanh.
-- **FR-006**: Lớp giải mã MUST tích hợp thuật toán giải mãgreedy search (Transducer loop) và modified beam search kế thừa từ mã nguồn `ASR/zipformer`.
+- **FR-001**: The ASR server MUST load the JIT TorchScript model checkpoint from the path configured in `ASR_CHECKPOINT_PATH` (defaulting to `viet_iter3_pseudo_label/exp/jit_script.pt`) at server startup.
+- **FR-002**: The ASR server MUST load the BPE symbol table from `viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/tokens.txt` at server startup to map token IDs to text.
+- **FR-003**: The ASR server MUST extract 80-dimensional log-Mel Fbank features using `torchaudio.compliance.kaldi.fbank` to ensure portability and avoid compiled C++ dependencies like `kaldifeat` on the host machine.
+- **FR-004**: The ASR server MUST support feature extraction from both WAV file byte buffers (from REST uploads) and raw int16 PCM bytes (from WebSocket stream chunks).
+- **FR-005**: For WebSocket streaming, the ASR server MUST manage dynamic session states by instantiating and caching a `DecodeStream` object for each active connection.
+- **FR-006**: The serving model wrapper MUST execute the actual greedy search and modified beam search decoding algorithms ported from `ASR/zipformer`.
 
 ### Key Entities
 
-- **ServingModel**: Thực thể đại diện cho mô hình giải mã Zipformer đã nạp vào RAM dưới dạng TorchScript JIT.
-- **SymbolTable**: Bảng ký hiệu từ vựng ánh xạ ID sang chữ viết tiếng Việt.
-- **DecodeStream**: Thực thể lưu trữ trạng thái giải mã trực tuyến, bao gồm các tensor trạng thái ẩn của mô hình, số lượng đặc trưng đã đọc, và danh sách các giả thuyết chùm giải mã (hypothesis lists).
+- **ServingModel**: Represents the loaded Zipformer TorchScript JIT model.
+- **SymbolTable**: Represents the vocabulary mapping table translating BPE token IDs to Vietnamese characters.
+- **DecodeStream**: Represents the session-based streaming state tracker, caching hidden layers states and feature padding across chunks.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Quá trình trích xuất đặc trưng Fbank và forward qua mô hình cho một tệp âm thanh 10 giây phải hoàn thành trong thời gian dưới 1.0 giây trên CPU.
-- **SC-002**: Độ trễ cập nhật kết quả từng phần (Time-to-First-Token) của luồng WebSocket streaming phải nhỏ hơn 350 mili giây kể từ khi nhận được chunk âm thanh.
-- **SC-003**: Hệ thống phải dọn dẹp thành công 100% đối tượng `DecodeStream` trong vòng 100 mili giây sau khi đóng kết nối WebSocket.
+- **SC-001**: Feature extraction and model forward pass for a 10-second audio file MUST complete in under 1.0 second on CPU.
+- **SC-002**: The real-time streaming endpoint MUST achieve an incremental update latency (Time-to-First-Token) of less than 350 milliseconds.
+- **SC-003**: The system MUST dispose of the `DecodeStream` instance and free the memory in under 100 milliseconds after WebSocket closure.
 
 ## Assumptions
 
-- Môi trường máy chủ có sẵn các thư viện PyTorch, Torchaudio và k2 tương thích với phiên bản biên dịch của mô hình.
-- Mô hình chạy mặc định trên CPU (nếu có GPU sẽ tự động nạp thiết bị `cuda:0`).
-- Tệp checkpoint và bảng từ vựng tồn tại đúng vị trí trong thư mục `viet_iter3_pseudo_label`.
+- The target server environment has PyTorch, Torchaudio, and k2 libraries pre-installed.
+- Serving runs on CPU by default (with CUDA automatic fallback enabled).
+- Checkpoint models and token configurations are present under the `viet_iter3_pseudo_label/` path.
