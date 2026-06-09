@@ -16,7 +16,7 @@
 
 - [x] T001 Initialize monorepo workspace and create basic folder structure (`apps/`, `docker/`, `docs/`)
 - [x] T002 [P] Initialize PostgreSQL and MinIO container services in `docker/docker-compose.yml`
-- [ ] T003 [P] Create environment files `apps/web-backend/.env` and `apps/asr-server/.env` with local secrets and CORS domains
+- [x] T003 [P] Create environment files `apps/web-backend/.env` and `apps/asr-server/.env` with local secrets and CORS domains
 - [ ] T004 [P] Configure pre-commit scripts and clean scripts to purge k2 C++ caches and Python bytecode folders in `scripts/clean.sh`
 
 ---
