@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { AudioUploader } from './components/AudioUploader';
+import { AudioStreamer } from './components/AudioStreamer';
 
 function App() {
+  const [activeTab, setActiveTab] = useState<'batch' | 'stream'>('batch');
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200">
       {/* Glow Blur Background Elements */}
@@ -30,7 +34,31 @@ function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 py-10 relative">
-        <AudioUploader />
+        {/* Navigation Tabs */}
+        <div className="max-w-4xl mx-auto px-4 mb-6 flex justify-center gap-4">
+          <button
+            onClick={() => setActiveTab('batch')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+              activeTab === 'batch'
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/20'
+                : 'bg-slate-900/40 border border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+            }`}
+          >
+            Nhận dạng theo lô (Batch)
+          </button>
+          <button
+            onClick={() => setActiveTab('stream')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+              activeTab === 'stream'
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/20'
+                : 'bg-slate-900/40 border border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+            }`}
+          >
+            Phát trực tuyến (Real-time)
+          </button>
+        </div>
+
+        {activeTab === 'batch' ? <AudioUploader /> : <AudioStreamer />}
       </main>
 
       {/* Footer */}
