@@ -1,48 +1,80 @@
-# Plan for Running and Testing VietASR (Mac M1)
+# Running and Testing Guide
 
-This document details the completed and remaining steps to set up the environment, run unit tests, and perform ASR inference on a Mac M1.
-
-## Completed Steps
-
-1. **Virtual Environment Setup**: Activated `.venv` (Python 3.11).
-2. **Core Dependencies**: Installed `torch`, `torchaudio`, `lhotse`, and `matplotlib`.
-3. **k2 Source Compilation**: Cloned and successfully built/installed CPU-only `k2` from source.
-4. **icefall Integration**: Cloned `icefall` into `external/icefall`.
-5. **kaldifeat Source Compilation**: Successfully built and installed `kaldifeat` with C++17 support:
-   ```bash
-   export KALDIFEAT_CMAKE_ARGS="-DCMAKE_CXX_STANDARD=17"
-   pip install --no-build-isolation kaldifeat
-   ```
-6. **Unit Tests Verification**:
-   - `python ASR/zipformer/test_scaling.py` -> PASSED
-   - `python ASR/zipformer/test_subsampling.py` -> PASSED
+This document describes how to perform audio preprocessing, download pretrained checkpoints, and run Automatic Speech Recognition (ASR) decoding.
 
 ---
 
-## Remaining Steps
+## 1. Extract Audio from Video (Optional)
 
-### 1. Extract WAV from MP4 Dialogue
-Use `ffmpeg` (install it via `brew install ffmpeg` first if not already available) to convert your podcast video:
+If your input is a video file (e.g., `.mp4`), you must convert it to a single-channel wav file with a 16kHz sampling rate using `ffmpeg`:
+
 ```bash
-ffmpeg -i input-test/videot-test-001.mp4 -ar 16000 -ac 1 -c:a pcm_s16le input-test/videot-test-001.wav
+ffmpeg -i input-test/video-test-001.mp4 -ar 16000 -ac 1 -c:a pcm_s16le input-test/video-test-001.wav
 ```
 
-### 2. Download Pretrained Checkpoint
-Download the checkpoint `viet_iter3_pseudo_label` from Hugging Face using the corrected Python command (separated with a semicolon `;`):
+---
+
+## 2. Download Pretrained Checkpoint
+
+To perform inference or fine-tuning, download the pre-trained Iteration 3 VietASR model checkpoint from Hugging Face:
+
 ```bash
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='zzasdf/viet_iter3_pseudo_label', local_dir='viet_iter3_pseudo_label')"
 ```
 
-### 3. Run Inference Test
-Once the model is downloaded and the WAV is generated, run the ASR transcription script:
-```bash
-# Ensure PYTHONPATH includes icefall
-export PYTHONPATH=$(pwd)/external/icefall:$PYTHONPATH
+Once downloaded, the folder structure will be:
+```
+viet_iter3_pseudo_label/
+├── exp/
+│   └── epoch-12.pt (Model checkpoint)
+└── data/
+    └── Vietnam_bpe_2000_new/
+        └── tokens.txt (Tokenizer tokens)
+```
 
-# Run inference
+---
+
+## 3. Run Inference / Decoding
+
+Once your audio file and model checkpoints are ready, run the inference command to transcribe the speech:
+
+### macOS / Linux
+```bash
+# 1. Setup paths
+source setup.sh
+
+# 2. Run inference using Zipformer decoding script
 python3 ./ASR/zipformer/pretrained.py \
   --checkpoint viet_iter3_pseudo_label/exp/epoch-12.pt \
   --tokens ./viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/tokens.txt \
   --method modified_beam_search \
-  input-test/videot-test-001.wav
+  input-test/video-test-001-small.wav
 ```
+
+### Windows (PowerShell)
+```powershell
+# 1. Setup paths
+$env:PYTHONPATH = "$(Get-Location)/external/icefall;$(Get-Location)/ASR/zipformer;$env:PYTHONPATH"
+$env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION = "python"
+
+# 2. Run inference
+python ./ASR/zipformer/pretrained.py `
+  --checkpoint viet_iter3_pseudo_label/exp/epoch-12.pt `
+  --tokens ./viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/tokens.txt `
+  --method modified_beam_search `
+  input-test/video-test-001-small.wav
+```
+
+---
+
+## 4. Run Decoding on Subsets
+
+To evaluate a model checkpoint on validation or test sets, configure the decoding script:
+
+```bash
+cd SSL
+# Usage: ./scripts/decode.sh <epoch> <average_epochs> <gpu_id>
+# Example: Evaluate epoch 12, averaging last 1 epoch, on GPU 0
+./scripts/decode.sh 12 1 0
+```
+*Note: Make sure to update the datasets path inside [SSL/scripts/decode.sh](../SSL/scripts/decode.sh) before running.*
