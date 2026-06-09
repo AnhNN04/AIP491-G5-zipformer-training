@@ -19,3 +19,10 @@ dependencies = [
     "torchaudio>=2.11.0",
     "tqdm>=4.68.1",
 ]
+
+[tool.pyright]
+extraPaths = [
+    "POC/apps/web-backend",
+    "POC/apps/asr-server"
+]
+
