@@ -65,7 +65,7 @@
 
 **Independent Test**: Verified by invoking batch uploads with different configuration payloads as detailed in `quickstart.md#42-scenario-2-dynamic-decoding-parameter-verification-p2-verification`.
 
-- [ ] T021 [US2] Map dynamic parameters to k2 decoding search space inputs in `apps/asr-server/src/models/k2_decoder.py`
+- [x] T021 [US2] Map dynamic parameters to k2 decoding search space inputs in `apps/asr-server/src/models/k2_decoder.py`
 - [ ] T022 [US2] Update upload REST handler to deserialize decoding options and relay parameters to model server in `apps/web-backend/src/adapters/controllers/upload_controller.py`
 - [ ] T023 [US2] Implement ASR Config Panel UI component in `apps/web-frontend/src/components/ASRConfigPanel.tsx`
 - [ ] T024 [US2] Connect configuration panel states to the API requests in `apps/web-frontend/src/services/api_client.ts`
