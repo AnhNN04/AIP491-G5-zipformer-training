@@ -52,3 +52,15 @@ async def upload_audio(
     controller = UploadController(transcribe_usecase)
     
     return await controller.upload_and_transcribe(file=file, config=config)
+
+
+from fastapi import WebSocket
+from src.adapters.controllers.stream_controller import StreamController
+
+@router.websocket("/stream")
+async def websocket_stream(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time bidirectional audio streaming and transcript updates.
+    """
+    controller = StreamController()
+    await controller.handle_stream(websocket)

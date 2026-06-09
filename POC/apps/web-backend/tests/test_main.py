@@ -64,3 +64,47 @@ def test_upload_route_invalid_format():
     
     assert response.status_code == 400
     assert "Unsupported file format" in response.json()["detail"]
+
+
+def test_websocket_stream_route_success():
+    from tests.test_websocket_client import MockAsrWebSocket, AsyncContextManagerMock
+    
+    asr_ws = MockAsrWebSocket()
+    asr_ws.recv_messages.append(json.dumps({
+        "event": "handshake_ok",
+        "session_id": "test_route_session_123"
+    }))
+    asr_ws.recv_messages.append(json.dumps({
+        "event": "transcript_update",
+        "text": "chào mừng bạn",
+        "is_final": False
+    }))
+    asr_ws.recv_messages.append(json.dumps({
+        "event": "finished",
+        "full_transcript": "chào mừng bạn đến với hệ thống",
+        "confidence": 0.96
+    }))
+    
+    with patch("websockets.connect", return_value=AsyncContextManagerMock(asr_ws)):
+        with client.websocket_connect("/api/stream") as websocket:
+            websocket.send_json({
+                "event": "handshake",
+                "config": {
+                    "method": "greedy_search",
+                    "causal": True
+                }
+            })
+            resp = websocket.receive_json()
+            assert resp["event"] == "handshake_ok"
+            assert resp["session_id"] == "test_route_session_123"
+            
+            websocket.send_bytes(b"some audio bytes")
+            resp = websocket.receive_json()
+            assert resp["event"] == "transcript_update"
+            assert resp["text"] == "chào mừng bạn"
+            
+            websocket.send_json({"event": "stop"})
+            resp = websocket.receive_json()
+            assert resp["event"] == "finished"
+            assert resp["full_transcript"] == "chào mừng bạn đến với hệ thống"
+
