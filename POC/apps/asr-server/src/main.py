@@ -2,11 +2,11 @@ import os
 import json
 import logging
 import asyncio
-import torch
-from typing import Optional
+from typing import Optional, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect
 import uuid
-from src.models.k2_decoder import K2Decoder, _pcm_bytes_to_tensor
+from src.models.k2_decoder import K2Decoder
+from src.models.decode_stream import DecodeStream
 
 # Set up logging conforming to Constitution Principle V
 logging.basicConfig(
@@ -32,8 +32,8 @@ decoder = K2Decoder(
     tokens_path=TOKENS_PATH or None,
 )
 
-# Session buffer: { session_id -> {"config": {...}, "samples": Tensor} }
-_sessions: dict = {}
+# Active WebSocket sessions: { session_id -> DecodeStream }
+_sessions: Dict[str, DecodeStream] = {}
 
 
 @app.get("/health")
@@ -96,7 +96,7 @@ async def websocket_stream(websocket: WebSocket):
 
     session_id = f"asr_sess_{uuid.uuid4().hex[:8]}"
     handshake_done = False
-    ws_config: dict = {}
+    stream: Optional[DecodeStream] = None
 
     try:
         while True:
@@ -115,11 +115,9 @@ async def websocket_stream(websocket: WebSocket):
                 if event == "handshake":
                     ws_config = data.get("config", {})
                     logger.info(f"WS Handshake config received: {ws_config}")
+                    stream = DecodeStream(session_id=session_id, config=ws_config)
+                    _sessions[session_id] = stream
                     handshake_done = True
-                    _sessions[session_id] = {
-                        "config": ws_config,
-                        "samples": torch.tensor([], dtype=torch.float32),
-                    }
                     await websocket.send_json({
                         "event": "handshake_ok",
                         "session_id": session_id,
@@ -127,16 +125,15 @@ async def websocket_stream(websocket: WebSocket):
 
                 elif event == "stop":
                     logger.info(f"WS Stop frame received for session {session_id}")
-                    session = _sessions.get(session_id, {})
-                    accumulated = session.get("samples", torch.tensor([]))
-                    method = ws_config.get("method", "greedy_search")
-                    beam_size = ws_config.get("beam_size", 4)
-
                     loop = asyncio.get_running_loop()
-                    full_text = await loop.run_in_executor(
-                        None,
-                        lambda: decoder.decode_chunk(accumulated, method=method, beam_size=beam_size),
-                    )
+                    if stream is not None:
+                        full_text = await loop.run_in_executor(
+                            None,
+                            lambda: decoder.decode_stream_session(stream),
+                        )
+                        stream.reset()
+                    else:
+                        full_text = ""
                     _sessions.pop(session_id, None)
                     await websocket.send_json({
                         "event": "finished",
@@ -148,7 +145,7 @@ async def websocket_stream(websocket: WebSocket):
                     logger.warning(f"Unknown event received on WS: {event}")
 
             elif "bytes" in message:
-                if not handshake_done:
+                if not handshake_done or stream is None:
                     logger.warning("Received binary audio data before handshake")
                     await websocket.close(code=1008)
                     break
@@ -156,25 +153,14 @@ async def websocket_stream(websocket: WebSocket):
                 audio_chunk = message["bytes"]
                 logger.debug(f"Received audio chunk of size {len(audio_chunk)} bytes")
 
-                # Accumulate raw int16 PCM bytes
-                new_samples = _pcm_bytes_to_tensor(audio_chunk)
-                session = _sessions.setdefault(session_id, {
-                    "config": ws_config,
-                    "samples": torch.tensor([], dtype=torch.float32),
-                })
-                session["samples"] = torch.cat([session["samples"], new_samples])
+                # Accumulate PCM chunk into the session's DecodeStream
+                stream.add_chunk(audio_chunk)
 
-                # Run decode_chunk in executor to avoid blocking event loop
-                accumulated = session["samples"].clone()
-                method = ws_config.get("method", "greedy_search")
-                beam_size = ws_config.get("beam_size", 4)
-
+                # Run decode_stream_session in executor (non-blocking)
                 loop = asyncio.get_running_loop()
                 partial_text = await loop.run_in_executor(
                     None,
-                    lambda: decoder.decode_chunk(
-                        accumulated, method=method, beam_size=beam_size
-                    ),
+                    lambda: decoder.decode_stream_session(stream),
                 )
 
                 await websocket.send_json({

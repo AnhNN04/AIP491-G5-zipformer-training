@@ -57,7 +57,9 @@ def mock_decoder():
             "word_alignments": [],
         }
         mocked.decode_chunk.return_value = "xin chào"
+        mocked.decode_stream_session.return_value = "xin chào"
         yield mocked
+
 
 
 @pytest.fixture(scope="module")

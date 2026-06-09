@@ -30,11 +30,25 @@ uv run gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:80
 ```
 
 ### 2.2. ASR Inference Server
-Run the ASR server with a production-ready server engine:
+
+The `asr-server` depends on ML libraries (PyTorch, torchaudio, k2) installed in the **root `.venv`** at `VietASR/.venv`. Run from the `POC/apps/asr-server/` directory:
 
 ```bash
+# Development (with hot-reload)
 cd apps/asr-server
-uv run uvicorn src.main:app --host 0.0.0.0 --port 8001
+PYTHONPATH=. ../../../.venv/bin/python -m uvicorn src.main:app --host 127.0.0.1 --port 8001 --reload
+
+# Production (no reload)
+cd apps/asr-server
+PYTHONPATH=. ../../../.venv/bin/python -m uvicorn src.main:app --host 0.0.0.0 --port 8001
+```
+
+**Environment variables** (set in `POC/apps/asr-server/.env`):
+```env
+ASR_CHECKPOINT_PATH=../../../viet_iter3_pseudo_label/exp/jit_script.pt
+ASR_TOKENS_PATH=../../../viet_iter3_pseudo_label/data/Vietnam_bpe_2000_new/tokens.txt
+PORT=8001
+HOST=127.0.0.1
 ```
 
 ### 2.3. React Frontend (Web Frontend)

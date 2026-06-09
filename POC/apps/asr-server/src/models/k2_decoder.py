@@ -437,3 +437,25 @@ class K2Decoder:
                 )
 
         return self._token_ids_to_text(hyps[0])
+
+    def decode_stream_session(
+        self,
+        stream: "DecodeStream",  # type: ignore[name-defined]  # avoid circular import
+    ) -> str:
+        """Transcribe all accumulated audio in a DecodeStream session object.
+
+        This is the primary entry point for WebSocket streaming — it reads
+        the session's accumulated buffer and decoding configuration in one call.
+
+        Args:
+            stream: A DecodeStream instance with accumulated PCM samples and
+                    session-level config (method, beam_size).
+
+        Returns:
+            Current full transcript string for the session.
+        """
+        return self.decode_chunk(
+            accumulated_samples=stream.get_samples(),
+            method=stream.method,
+            beam_size=stream.beam_size,
+        )
