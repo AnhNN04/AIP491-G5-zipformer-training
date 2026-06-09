@@ -52,7 +52,7 @@
 - [x] T016 [US1] Implement TranscribeAudioUseCase coordinating file validation, transcoding, S3 uploads, ASR client requests, and repository logs in `apps/web-backend/src/usecases/transcribe.py`
 - [x] T017 [US1] Implement upload request handler, validators, and size limits (50MB) in `apps/web-backend/src/adapters/controllers/upload_controller.py`
 - [x] T018 [US1] Expose upload API route in `apps/web-backend/src/frameworks/routes/audio_routes.py` and bind routes to FastAPI app in `apps/web-backend/src/frameworks/main.py`
-- [ ] T019 [P] [US1] Create React HTTP API client wrapper in `apps/web-frontend/src/services/api_client.ts`
+- [x] T019 [P] [US1] Create React HTTP API client wrapper in `apps/web-frontend/src/services/api_client.ts`
 - [ ] T020 [US1] Create Batch Audio Uploader page in `apps/web-frontend/src/components/AudioUploader.tsx`
 
 **Checkpoint**: User Story 1 (MVP) is fully functional and testable.
