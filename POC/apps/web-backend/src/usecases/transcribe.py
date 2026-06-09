@@ -12,6 +12,7 @@ from src.domain.interfaces import (
     IASRClient
 )
 from src.usecases.audio_process import AudioProcessor
+from src.usecases.dialect_routing import DialectRouter
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,8 @@ class TranscribeAudioUseCase:
         dialect_stats_repo: IDialectStatsRepository,
         storage_service: IStorageService,
         asr_client: IASRClient,
-        audio_processor: AudioProcessor
+        audio_processor: AudioProcessor,
+        dialect_router: Optional[DialectRouter] = None
     ):
         self.audio_file_repo = audio_file_repo
         self.transcription_repo = transcription_repo
@@ -33,6 +35,7 @@ class TranscribeAudioUseCase:
         self.storage_service = storage_service
         self.asr_client = asr_client
         self.audio_processor = audio_processor
+        self.dialect_router = dialect_router or DialectRouter()
 
     async def execute(
         self,
@@ -120,10 +123,11 @@ class TranscribeAudioUseCase:
         saved_transcription = await self.transcription_repo.save(transcription_entity)
 
         # 8. Log dialect/accent routing classification
+        dialect_info = self.dialect_router.classify_dialect(asr_result["text"])
         dialect_entity = DialectStats(
             audio_file_id=saved_audio.id,
-            inferred_dialect="NORTHERN",
-            dialect_probability=0.95
+            inferred_dialect=dialect_info["inferred"],
+            dialect_probability=dialect_info["probability"]
         )
         saved_dialect = await self.dialect_stats_repo.save(dialect_entity)
 

@@ -87,7 +87,7 @@ async def test_transcribe_usecase_success(
     assert response["size_bytes"] == len(b"raw mp3 contents")
     assert response["transcription"]["text"] == "chào mừng hệ thống"
     assert response["dialect"]["inferred"] == "NORTHERN"
-    assert response["dialect"]["probability"] == 0.95
+    assert response["dialect"]["probability"] == 0.70
 
     # Verify coordinator calls
     mock_processor.validate_format.assert_called_with("mp3")
