@@ -6,6 +6,7 @@ from src.domain.interfaces import (
     ITranscriptionRepository,
     IDialectStatsRepository,
     IStorageService,
+    IASRClient,
 )
 
 def test_interfaces_are_abstract():
@@ -27,6 +28,10 @@ def test_interfaces_are_abstract():
 
     with pytest.raises(TypeError):
         IStorageService()
+
+    with pytest.raises(TypeError):
+        IASRClient()
+
 
 
 def test_dummy_implementation():

@@ -116,3 +116,19 @@ class IStorageService(ABC):
         Delete an object from storage.
         """
         pass
+
+
+class IASRClient(ABC):
+    @abstractmethod
+    async def transcribe(
+        self,
+        audio_data: bytes,
+        filename: str,
+        decoding_config: Optional[DecodingConfig] = None
+    ) -> Dict[str, Any]:
+        """
+        Send audio data to the ASR Model Server for transcription.
+        Returns a dict containing text, confidence, word alignments, etc.
+        """
+        pass
+
