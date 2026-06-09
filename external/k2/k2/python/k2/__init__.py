@@ -127,4 +127,4 @@ from .decode import one_best_decoding
 
 cmake_prefix_path = _Path(__file__).parent / "share" / "cmake"
 del _Path
-__dev_version__ = '1.24.4.dev20260609+cpu.torch2.10.0'
+__dev_version__ = '1.24.4.dev20260609+cpu.torch2.12.0'
