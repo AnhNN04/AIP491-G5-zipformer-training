@@ -83,7 +83,7 @@
 - [x] T025 [P] [US3] Implement bidirectional WebSocket audio chunk decoding endpoint in `apps/asr-server/src/main.py`
 - [x] T026 [US3] Implement WebSocket stream relayer and handshake configuration mapper in `apps/web-backend/src/adapters/asr_client/websocket_client.py`
 - [x] T027 [US3] Implement streaming WebSocket endpoint `/api/stream` in `apps/web-backend/src/adapters/controllers/stream_controller.py`
-- [ ] T028 [P] [US3] Implement WebSocket connection client in `apps/web-frontend/src/services/websocket_client.ts`
+- [x] T028 [P] [US3] Implement WebSocket connection client in `apps/web-frontend/src/services/websocket_client.ts`
 - [ ] T029 [US3] Implement real-time microphone streaming recorder interface in `apps/web-frontend/src/components/AudioStreamer.tsx`
 
 **Checkpoint**: All user stories are independently functional.
