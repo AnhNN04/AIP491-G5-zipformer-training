@@ -7,3 +7,4 @@ __pycache__/
 exp/
 .venv/
 input-test/video-test-001.mp4
+input-test/video-test-001.wav
