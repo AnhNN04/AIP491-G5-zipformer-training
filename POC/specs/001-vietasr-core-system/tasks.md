@@ -94,7 +94,7 @@
 
 **Purpose**: System optimizations, error recovery, and dialect classification stats.
 
-- [ ] T030 [P] Implement dialect classification routing logic in `apps/web-backend/src/usecases/dialect_routing.py`
+- [x] T030 [P] Implement dialect classification routing logic in `apps/web-backend/src/usecases/dialect_routing.py`
 - [ ] T031 Integrate dialect stats metadata tracking into controllers in `apps/web-backend/src/adapters/controllers/upload_controller.py`
 - [ ] T032 [P] Implement error-handling and connection recovery adapters for ASR server disconnections in `apps/web-backend/src/adapters/asr_client/http_client.py`
 - [ ] T033 Execute docker startup clean commands and run end-to-end tests as documented in `quickstart.md`
