@@ -8,3 +8,23 @@ exp/
 .venv/
 input-test/video-test-001.mp4
 input-test/video-test-001.wav
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Frontend build and dependencies
+node_modules/
+dist/
+build/
+*.log
+
+# Python/C++ compiler and cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.k2_cache/
