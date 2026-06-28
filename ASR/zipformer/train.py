@@ -134,7 +134,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--num-encoder-layers",
         type=str,
-        default="2,2,3,4,3,2",
+        default="2,2,2,2,2,2",  # Zipformer-Small: stacks 3-5 reduced from 3,4,3
         help="Number of zipformer encoder layers per stack, comma separated.",
     )
 
@@ -148,7 +148,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--feedforward-dim",
         type=str,
-        default="512,768,1024,1536,1024,768",
+        default="512,768,768,768,768,768",  # Zipformer-Small: stacks 3-5 reduced from 1024,1536,1024
         help="Feedforward dimension of the zipformer encoder layers, per stack, comma separated.",
     )
 
@@ -162,7 +162,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--encoder-dim",
         type=str,
-        default="192,256,384,512,384,256",
+        default="192,256,256,256,256,256",  # Zipformer-Small: stacks 3-5 reduced from 384,512,384
         help="Embedding dimension in encoder stacks: a single int or comma-separated list.",
     )
 
@@ -197,7 +197,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--encoder-unmasked-dim",
         type=str,
-        default="192,192,256,256,256,192",
+        default="192,192,256,256,256,256",  # Zipformer-Small: stack 6 updated 192→256 to match encoder_dim
         help="Unmasked dimensions in the encoders, relates to augmentation during training.  "
         "A single int or comma-separated list.  Must be <= each corresponding encoder_dim.",
     )
