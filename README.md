@@ -20,6 +20,7 @@ Detailed documentation for contributors and researchers is available in the [`do
 | [Model 30M Configuration Guide](docs/model-30m-configuration-guide.md) | Detailed guide for every hyperparameter of the Zipformer-Small (~30M) config |
 | [Zipformer-Small Spec](docs/zipformer-small-spec.md) | Architecture specification for the customized ~30M parameter variant |
 | [Zipformer Architecture](docs/zipformer-architecture.md) | In-depth explanation of the Zipformer2 encoder internals |
+| [MoE Zipformer Design](docs/moe-zipformer-design.md) | Design notes for a Mixture-of-Experts Zipformer variant (experimental) |
 | [ASR System Guide (EN)](docs/asr-system-guide.md) | Step-by-step English guide to the full training and deployment pipeline |
 | [ASR System Guide (VI)](docs/asr-system-guide-vi.md) | Vietnamese version of the system guide |
 | [Environment Setup Plan](docs/env-setup-plan.md) | CUDA compatibility, virtual environment, and PYTHONPATH setup |
