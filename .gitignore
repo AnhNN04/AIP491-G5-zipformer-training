@@ -5,6 +5,7 @@ tem_scripts/
 submit_*.py
 __pycache__/
 exp/
+checkpoints/
 .venv/
 input-test/video-test-001.mp4
 input-test/video-test-001.wav

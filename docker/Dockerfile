@@ -1,31 +1,39 @@
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel
-# python 3.10
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
+# Python 3.11
 
-ENV LC_ALL C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV DEBIAN_FRONTEND=noninteractive
 
-ARG DEBIAN_FRONTEND=noninteractive
+# fix segmentation fault with protobuf
+ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-# python 3.10
-ARG K2_VERSION="1.24.4.dev20240223+cuda11.8.torch2.1.0"
-ARG KALDIFEAT_VERSION="1.25.4.dev20240223+cuda11.8.torch2.1.0"
-ARG TORCHAUDIO_VERSION="2.1.0+cu118"
+# ── Version pins (CUDA 12.4 + Torch 2.5.1) ────────────────────────────────────
+# Wheels verified at:
+#   https://k2-fsa.github.io/k2/cuda.html
+#   https://csukuangfj.github.io/kaldifeat/cuda.html
+ARG K2_VERSION="1.24.4.dev20250715+cuda12.4.torch2.5.1"
+ARG KALDIFEAT_VERSION="1.25.5.dev20260626+cuda12.4.torch2.5.1"
+ARG TORCHAUDIO_VERSION="2.5.1+cu124"
 
-LABEL authors="Fangjun Kuang <csukuangfj@gmail.com>"
+LABEL authors="VietASR Team"
 LABEL k2_version=${K2_VERSION}
 LABEL kaldifeat_version=${KALDIFEAT_VERSION}
 LABEL github_repo="https://github.com/k2-fsa/icefall"
 
+# ── Layer 1: System packages ───────────────────────────────────────────────────
+# Cached independently of Python packages — changes here only rebuild from this layer.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
         vim \
         tmux \
         htop \
-    	libssl-dev \
+        libssl-dev \
         autoconf \
         automake \
         bzip2 \
         ca-certificates \
+        cmake \
         ffmpeg \
         g++ \
         gfortran \
@@ -40,9 +48,11 @@ RUN apt-get update && \
         wget \
         zsh \
         zlib1g-dev \
-        && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# ── Layer 2: Core Python dependencies ─────────────────────────────────────────
+# Heavy packages (k2, kaldifeat, torchaudio) are installed first so they are
+# cached even if lighter packages change.
 RUN pip install --no-cache-dir \
       torchaudio==${TORCHAUDIO_VERSION} -f https://download.pytorch.org/whl/torchaudio/ \
       k2==${K2_VERSION} -f https://k2-fsa.github.io/k2/cuda.html \
@@ -52,7 +62,7 @@ RUN pip install --no-cache-dir \
       kaldialign \
       kaldifst \
       kaldilm \
-      sentencepiece>=0.1.96 \
+      "sentencepiece>=0.1.96" \
       tensorboard \
       typeguard \
       dill \
@@ -62,22 +72,28 @@ RUN pip install --no-cache-dir \
       onnxoptimizer \
       onnxsim \
       multi_quantization \
-      typeguard \
       numpy \
       pytest \
       wandb \
       transformers \
       graphviz
 
-
-RUN git clone https://github.com/k2-fsa/icefall /workspace/icefall && \
-    cd /workspace/icefall && \
+# ── Layer 3: icefall framework ─────────────────────────────────────────────────
+# Cloned to /opt/icefall so the project repo can mount cleanly at /workspace.
+RUN git clone https://github.com/k2-fsa/icefall /opt/icefall && \
+    cd /opt/icefall && \
     pip install --no-cache-dir -r requirements.txt
 
-RUN pip3 install --no-cache-dir -U funasr
-RUN pip3 install --no-cache-dir -U modelscope
-RUN python -c 'from funasr import AutoModel; model = AutoModel(model="fsmn-vad", model_revision="v2.0.4")'
+# ── Layer 4: funasr VAD model ──────────────────────────────────────────────────
+# Downloaded at build time to avoid slow cold-start on first run.
+RUN pip3 install --no-cache-dir -U funasr modelscope && \
+    python -c 'from funasr import AutoModel; AutoModel(model="fsmn-vad", model_revision="v2.0.4")'
 
-ENV PYTHONPATH /workspace/icefall:$PYTHONPATH
+# ── Runtime environment ────────────────────────────────────────────────────────
+# /opt/icefall            = upstream icefall framework (read-only at runtime)
+# /workspace              = project repo (mounted read-write at runtime)
+# /workspace/external/icefall = local icefall overrides (takes precedence)
+ENV PYTHONPATH=/opt/icefall:/workspace:/workspace/external/icefall:$PYTHONPATH
 
-WORKDIR /workspace/icefall
+# Project repo is mounted here at docker run time
+WORKDIR /workspace
