@@ -1,4 +1,4 @@
-# Zipformer ASR System Architecture & End-to-End Processing Flow (WAV-to-Text)
+# Zipformer System Architecture & End-to-End Processing Flow (WAV-to-Text)
 
 This document provides a detailed analysis of the mathematical foundations, model theory, component architecture, and data flow pipeline from the input audio file (`.wav`) to the output transcript in the VietASR project.
 

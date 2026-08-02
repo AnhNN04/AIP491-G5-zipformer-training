@@ -4,7 +4,7 @@ This guide describes the complete workflow to prepare both **labeled ASR data** 
 
 ---
 
-## 📂 Dataset Layout
+## Dataset Layout
 
 All raw datasets are located at the same level as the repository, mounted inside the Docker container under `/dataset/`:
 
@@ -18,29 +18,26 @@ All raw datasets are located at the same level as the repository, mounted inside
 
 ---
 
-## 🛠️ Step 1: Entering the Environment
+## Step 1: Entering the Environment
 
 Always run the data preparation scripts inside the optimized Docker container to avoid version conflicts and ensure compatibility with CUDA/GPU acceleration.
 
-From your WSL terminal, launch the container:
+Launch the container:
 ```bash
 ./docker_run.sh
 ```
 
 ---
 
-## 🎙️ Step 2: Labeled Data Preparation (ASR)
+## Step 2: Labeled Data Preparation (ASR)
 
 The labeled data preparation processes raw audio-transcript pairs and splits them into training partitions.
 
 ### Orchestration Script: `ASR/prepare.sh`
-You can run Stages 1 to 3 automatically:
+Run Stages 1 to 3 automatically:
 ```bash
-cd ASR
 bash prepare.sh --stage 1 --stop-stage 3
 ```
-
-Alternatively, you can run and verify each stage manually:
 
 ### Manual Stage Breakdown
 
@@ -89,7 +86,7 @@ Alternatively, you can run and verify each stage manually:
 
 ---
 
-## 🎧 Step 3: Unlabeled Data Preparation (SSL)
+## Step 3: Unlabeled Data Preparation (SSL)
 
 Unlabeled data preparation requires chunking files using VAD (Voice Activity Detection), sharding the manifest to avoid memory limits, and computing features.
 
@@ -141,12 +138,3 @@ bash prepare_ssl.sh --stage 1 --stop-stage 5
   ```
 * **What it does**: Leverages multiple CPU threads in parallel to compute fbank features for all shards.
 * **Output verification**: Generates `capstone-ssl_cuts_data.00000000.jsonl.gz` inside `SSL/data/ssl_data/data_split/` and binary features under `SSL/data/ssl_data/`.
-
----
-
-## ⚡ Troubleshooting & Performance Tips
-
-1. **Host Out of Memory (OOM)**:
-   The parallel jobs for feature extraction are set to `nj=8` (aligned with your 12-core CPU). If WSL runs low on memory, reduce `nj=4` inside the script settings.
-2. **Slow Disk writes**:
-   Ensure Docker's default volumes utilize WSL's native filesystem. Do not save intermediate logs or cache databases in Windows mounted paths (`/mnt/c/`). Caching folders for Hugging Face and Lhotse are pre-configured to build to `/root/.cache/` inside the container for native performance.

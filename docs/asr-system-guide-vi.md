@@ -1,8 +1,4 @@
-# Tài Liệu Hướng Dẫn Hệ Thống VietASR: Kiến Trúc, Chế Độ Chạy và Tham Số Cấu Hình
-
-Tài liệu này cung cấp phân tích chi tiết bằng Tiếng Việt về kiến trúc phần cứng/phần mềm, luồng dữ liệu chi tiết, các chế độ vận hành và tham số cấu hình của hệ thống nhận dạng giọng nói VietASR.
-
----
+# Kiến Trúc, Chế Độ Chạy và Tham Số Cấu Hình
 
 ## 1. Sơ Đồ Kiến Trúc Hệ Thống Chi Tiết
 
@@ -84,7 +80,7 @@ Zipformer là sự cải tiến vượt bậc so với kiến trúc Conformer tr
     Kết quả sau đó được đưa qua lớp Softmax để tính phân phối xác suất trên toàn bộ từ điển (BPE tokens).
 
 ### 2.5. Nhánh CTC (Connectionist Temporal Classification)
-Bên cạnh nhánh Transducer mặc định, VietASR còn hỗ trợ nhánh CTC phục vụ huấn luyện kết hợp (joint training) hoặc giải mã độc lập:
+Bên cạnh nhánh Transducer mặc định, hệ thống còn hỗ trợ nhánh CTC phục vụ huấn luyện kết hợp (joint training) hoặc giải mã độc lập:
 *   **Nguyên lý**: Nhánh CTC chiếu trực tiếp đầu ra của Encoder $H_{\text{encoder}}$ lên từ điển thông qua một lớp tuyến tính (`nn.Linear`) và tính toán `LogSoftmax` để đưa ra phân phối xác suất độc lập tại từng frame thời gian mà không cần thông qua mạng Decoder (Predictor) hay Joiner.
 *   **Đặc điểm**: Tốc độ suy luận rất nhanh và cấu trúc mô hình cực kỳ đơn giản (chỉ sử dụng Acoustic Model), thích hợp cho các thiết bị tài nguyên thấp.
 
@@ -147,15 +143,3 @@ Dưới đây là mô tả chi tiết các tham số khi chạy file thực thi 
 | `--causal` | `int` | `0` | Đặt bằng `1` để bật chế độ mô phỏng streaming nhân quả, `0` để chạy offline mặc định. |
 | `--chunk-size` | `str` | `16` | Độ dài khung âm học giải mã tuần tự cho streaming (đơn vị: frames). |
 | `--left-context-frames`| `str` | `128` | Kích thước bộ nhớ ngữ cảnh lịch sử lưu trữ cho streaming. |
-
----
-
-## 6. Ánh Xạ File Mã Nguồn Cốt Lõi
-
-*   **[ASR/zipformer/pretrained.py](../ASR/zipformer/pretrained.py)**: Điểm chạy chính để nhận dạng/suy luận offline cho các file âm thanh.
-*   **[ASR/zipformer/pretrained_ctc.py](../ASR/zipformer/pretrained_ctc.py)**: File chạy nhận dạng cho các mô hình sử dụng CTC đầu ra.
-*   **[ASR/zipformer/zipformer.py](../ASR/zipformer/zipformer.py)**: Định nghĩa cấu trúc khối Zipformer Encoder với cơ chế hạ mẫu đa tốc độ.
-*   **[ASR/zipformer/decoder.py](../ASR/zipformer/decoder.py)**: Định nghĩa Stateless Predictor để nhúng các token đích.
-*   **[ASR/zipformer/joiner.py](../ASR/zipformer/joiner.py)**: Định nghĩa khối kết hợp thông tin âm học và ngữ cảnh ngôn ngữ.
-*   **[ASR/zipformer/beam_search.py](../ASR/zipformer/beam_search.py)**: Chứa toàn bộ mã nguồn cài đặt các thuật toán giải mã (Greedy, Beam Search).
-*   **[ASR/zipformer/train.py](../ASR/zipformer/train.py)**: Script quản lý quá trình khởi tạo mô hình và thực thi huấn luyện (training loop).

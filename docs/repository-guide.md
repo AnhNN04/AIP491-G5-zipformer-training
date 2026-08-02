@@ -1,10 +1,4 @@
-# VietASR Repository Guide — Complete Reference for New Contributors
-
-> **Purpose:** This document is the single authoritative reference for every folder and file in this repository. After reading it you should be able to navigate the codebase, understand why each file exists, and know exactly what to touch when making any kind of change.
->
-> **Paper:** [arXiv:2505.21527](https://arxiv.org/abs/2505.21527) — *VietASR: Achieving Industry-level Vietnamese ASR with 50-hour labeled data and Large-Scale Speech Pretraining*
-
----
+# ASR Model Training Repository Guide
 
 ## Table of Contents
 

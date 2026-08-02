@@ -13,17 +13,17 @@ To run GPU-accelerated training inside Docker on WSL2, your Windows host machine
    * Install Docker Desktop for Windows.
    * Go to **Settings > General** and ensure **"Use the WSL 2 based engine"** is checked.
 3. **NVIDIA Container Toolkit**: 
-   * Inside your WSL instance, test GPU access in Docker:
+   * Inside WSL instance, test GPU access in Docker:
      ```bash
      docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
      ```
-   * If this prints your GPU details, your runtime is correctly configured. If it fails, install the NVIDIA Container Toolkit inside WSL.
+   * If this prints your GPU details, runtime is correctly configured. If it fails, install the NVIDIA Container Toolkit inside WSL.
 
 ---
 
 ## Step 1: Building the Docker Image
 
-The repository contains a custom Dockerfile that packages all complex C++ and Python dependencies (`k2`, `kaldifeat`, `lhotse`, etc.) so you do not need to compile them manually on your host machine.
+The repository contains a custom Dockerfile that packages all complex C++ and Python dependencies (`k2`, `kaldifeat`, `lhotse`, etc.) so don't need to compile manually.
 
 Run the build command from the repository root:
 ```bash
@@ -43,14 +43,14 @@ docker build -t capstone-asr:latest -f docker/Dockerfile .
 If you are using next-generation GPUs based on the **NVIDIA Blackwell** architecture (compute compatibility `sm_120`):
 
 * **The Problem**: Standard PyTorch builds compiled with CUDA 12.4 only support up to Hopper (`sm_90`). Running them on Blackwell causes `RuntimeError: CUDA error: no kernel image is available for execution on the device`.
-* **The Resolution**: We upgraded the container base image to `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel` and defined the compilation environment variables:
+* **The Resolution**: Upgraded the container base image to `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel` and defined the compilation environment variables:
   ```dockerfile
   ENV TORCH_CUDA_ARCH_LIST="12.0"
   ```
   During image creation, the `k2` and `kaldifeat` packages are automatically built from source using your GPU toolchain, ensuring native binary support for `sm_120`.
 
 * **Batch Size Tuning (`--max-duration 300`)**:
-  To prevent Out-Of-Memory (OOM) errors on your 16GB VRAM card, the maximum batch duration inside all training and decoding scripts (`run_ssl.sh`, `finetune.sh`, etc.) is pre-configured to `300` seconds of audio frames. Avoid setting this back to the default `1000` unless you have multiple GPUs.
+  To prevent Out-Of-Memory (OOM) errors on 16GB VRAM card, the maximum batch duration inside all training and decoding scripts (`run_ssl.sh`, `finetune.sh`, etc.) is pre-configured to `300` seconds of audio frames. Avoid setting this back to the default `1000` unless you have multiple GPUs.
 
 ---
 
@@ -75,7 +75,7 @@ The launcher runs the container with the following crucial parameters:
 
 The container is pre-configured with environment variables to optimize training speeds and avoid WSL bottleneck issues:
 
-* **`PYTHONPATH=/opt/icefall:/workspace:/workspace/external/icefall`**: Sets the icefall frameworks in python paths. Priority is given to your local workspace overrides under `external/icefall`.
+* **`PYTHONPATH=/opt/icefall:/workspace:/workspace/external/icefall`**: Sets the icefall frameworks in python paths. Priority is given to local workspace overrides under `external/icefall`.
 * **`HF_HOME=/root/.cache/huggingface`**: Saves downloaded checkpoints and tokenizers inside the fast native container storage.
 * **`LHOTSE_CACHE=/root/.cache/lhotse`**: Prevents writing temporary cache/manifest verification databases to slow Windows/host mounted folders.
 

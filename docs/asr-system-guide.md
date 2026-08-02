@@ -1,8 +1,4 @@
-# VietASR Reference Manual: Architecture, Running Modes, and CLI Options
-
-This guide provides a detailed analysis of the system architecture, data flow pipeline, operational running modes, and command-line configuration parameters of the VietASR speech recognition system.
-
----
+# ASR Model Training System Guide
 
 ## 1. System Architecture Diagram
 
@@ -84,7 +80,7 @@ Zipformer improves upon the traditional Conformer architecture using a **U-Net**
     The outputs are fed to a Softmax layer projecting over the vocabulary space (BPE tokens).
 
 ### 2.5. Connectionist Temporal Classification (CTC) Branch
-Alongside the default Transducer branch, VietASR supports a CTC branch for joint training or independent inference:
+Alongside the default Transducer branch, the system supports a CTC branch for joint training or independent inference:
 *   **Mechanism**: The CTC branch directly projects the Encoder output $H_{\text{encoder}}$ onto the vocabulary space using a linear layer (`nn.Linear`) and computes `LogSoftmax` to generate independent token probability distributions for each time frame. This bypasses the Predictor and Joiner networks entirely.
 *   **Characteristics**: Very fast inference speeds and a highly simplified model structure (relying solely on the Acoustic Encoder), making it suitable for resource-constrained edge devices.
 
@@ -146,15 +142,3 @@ Below is a reference of the command-line options available in the primary infere
 | `--causal` | `int` | `0` | Set to `1` to enable streaming/causal model configuration. |
 | `--chunk-size` | `str` | `16` | Decoding chunk size for streaming. |
 | `--left-context-frames`| `str` | `128` | Left-context size limits for streaming attention queries. |
-
----
-
-## 6. Directory and Key File Mapping
-
-*   **[ASR/zipformer/pretrained.py](../ASR/zipformer/pretrained.py)**: The entry point for batch/offline inference on audio files.
-*   **[ASR/zipformer/pretrained_ctc.py](../ASR/zipformer/pretrained_ctc.py)**: The entry point for CTC-based inference.
-*   **[ASR/zipformer/zipformer.py](../ASR/zipformer/zipformer.py)**: Module defining the multi-rate downsampling Zipformer encoder blocks.
-*   **[ASR/zipformer/decoder.py](../ASR/zipformer/decoder.py)**: Module defining the stateless BPE tokenizer predictor.
-*   **[ASR/zipformer/joiner.py](../ASR/zipformer/joiner.py)**: Integrates encoder and predictor output tensors.
-*   **[ASR/zipformer/beam_search.py](../ASR/zipformer/beam_search.py)**: Pure Python implementations of greedy, modified beam, and FST graph search decoders.
-*   **[ASR/zipformer/train.py](../ASR/zipformer/train.py)**: Script managing model instantiation, parameter loading, and main training execution.
