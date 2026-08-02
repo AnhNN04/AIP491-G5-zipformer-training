@@ -1,23 +1,16 @@
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
-# Python 3.11
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
+# Python 3.11/3.12
 
 ENV LC_ALL=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
+# target Blackwell architecture (RTX 5080)
+ENV TORCH_CUDA_ARCH_LIST="12.0"
+
 # fix segmentation fault with protobuf
 ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-# ── Version pins (CUDA 12.4 + Torch 2.5.1) ────────────────────────────────────
-# Wheels verified at:
-#   https://k2-fsa.github.io/k2/cuda.html
-#   https://csukuangfj.github.io/kaldifeat/cuda.html
-ARG K2_VERSION="1.24.4.dev20250715+cuda12.4.torch2.5.1"
-ARG KALDIFEAT_VERSION="1.25.5.dev20260626+cuda12.4.torch2.5.1"
-ARG TORCHAUDIO_VERSION="2.5.1+cu124"
-
 LABEL authors="VietASR Team"
-LABEL k2_version=${K2_VERSION}
-LABEL kaldifeat_version=${KALDIFEAT_VERSION}
 LABEL github_repo="https://github.com/k2-fsa/icefall"
 
 # ── Layer 1: System packages ───────────────────────────────────────────────────
@@ -54,14 +47,15 @@ RUN apt-get update && \
 # Heavy packages (k2, kaldifeat, torchaudio) are installed first so they are
 # cached even if lighter packages change.
 RUN pip install --no-cache-dir \
-      torchaudio==${TORCHAUDIO_VERSION} -f https://download.pytorch.org/whl/torchaudio/ \
-      k2==${K2_VERSION} -f https://k2-fsa.github.io/k2/cuda.html \
+      git+https://github.com/k2-fsa/k2.git \
+      git+https://github.com/csukuangfj/kaldifeat.git \
       git+https://github.com/lhotse-speech/lhotse \
-      kaldifeat==${KALDIFEAT_VERSION} -f https://csukuangfj.github.io/kaldifeat/cuda.html \
       kaldi_native_io \
       kaldialign \
       kaldifst \
       kaldilm \
+      lilcom \
+      einops \
       "sentencepiece>=0.1.96" \
       tensorboard \
       typeguard \
@@ -76,7 +70,11 @@ RUN pip install --no-cache-dir \
       pytest \
       wandb \
       transformers \
-      graphviz
+      graphviz \
+      rich \
+      matplotlib \
+      pypinyin \
+      "huggingface_hub[cli]"
 
 # ── Layer 3: icefall framework ─────────────────────────────────────────────────
 # Cloned to /opt/icefall so the project repo can mount cleanly at /workspace.
@@ -93,7 +91,9 @@ RUN pip3 install --no-cache-dir -U funasr modelscope && \
 # /opt/icefall            = upstream icefall framework (read-only at runtime)
 # /workspace              = project repo (mounted read-write at runtime)
 # /workspace/external/icefall = local icefall overrides (takes precedence)
-ENV PYTHONPATH=/opt/icefall:/workspace:/workspace/external/icefall:$PYTHONPATH
+ENV PYTHONPATH=/opt/icefall:/workspace:/workspace/external/icefall
+ENV HF_HOME=/root/.cache/huggingface
+ENV LHOTSE_CACHE=/root/.cache/lhotse
 
 # Project repo is mounted here at docker run time
 WORKDIR /workspace
