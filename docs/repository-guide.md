@@ -166,19 +166,19 @@ All Python files here are importable because `setup.sh` adds this directory to `
 #### ★ `train.py`
 **The primary training script.** 1,539 lines. Key responsibilities:
 
-- **`add_model_arguments(parser)`** — Defines all architecture hyperparameters as CLI arguments with defaults. **This is the ONLY place to change model size.** Current defaults (Zipformer-Small, ~30M params):
+- **`add_model_arguments(parser)`** — Defines all architecture hyperparameters as CLI arguments with defaults. **This is the ONLY place to change model size.** Current defaults (~68M params):
 
   | Argument | Default | Description |
   |----------|---------|-------------|
-  | `--num-encoder-layers` | `"2,2,2,2,2,2"` | Blocks per stack |
-  | `--encoder-dim` | `"192,256,256,256,256,256"` | Hidden dim per stack |
-  | `--feedforward-dim` | `"512,768,768,768,768,768"` | FF hidden dim per stack |
+  | `--num-encoder-layers` | `"2,2,3,4,3,2"` | Blocks per stack |
+  | `--encoder-dim` | `"192,256,384,512,384,256"` | Hidden dim per stack |
+  | `--feedforward-dim` | `"512,768,1024,1536,1024,768"` | FF hidden dim per stack |
   | `--num-heads` | `"4,4,4,8,4,4"` | Attention heads per stack |
   | `--cnn-module-kernel` | `"31,31,15,15,15,31"` | Conv kernel per stack |
   | `--query-head-dim` | `"32"` | Q/K dim per head (constant) |
   | `--value-head-dim` | `"12"` | V dim per head (constant) |
   | `--downsampling-factor` | `"1,2,4,8,4,2"` | U-Net frame rates |
-  | `--encoder-unmasked-dim` | `"192,192,256,256,256,256"` | Feature mask dim |
+  | `--encoder-unmasked-dim` | `"192,192,256,256,256,192"` | Feature mask dim |
   | `--decoder-dim` | `512` | RNN-T decoder embedding |
   | `--joiner-dim` | `512` | Joiner hidden dim |
 
@@ -668,14 +668,12 @@ All markdown design documents. Not source code — read for context and intent.
 | File | Contents |
 |------|----------|
 | `repository-guide.md` | **This file.** Complete reference for all files and folders. |
-| `zipformer-small-spec.md` | Specification for the ~30M Zipformer-Small architecture variant. |
 | `zipformer-architecture.md` | Detailed explanation of the Zipformer2 architecture internals. |
 | `asr-system-guide.md` | English guide to the full ASR training + deployment system. |
 | `asr-system-guide-vi.md` | Vietnamese translation of the system guide. |
-| `env-setup-plan.md` | Environment setup plan: CUDA compatibility, venv, PYTHONPATH. |
-| `poc-implementation-plan.md` | Original design plan for the POC web application. |
-| `running-testing-plan.md` | Test plan for end-to-end validation of the POC. |
-| `moe-zipformer-design.md` | Design notes for a potential Mixture-of-Experts Zipformer variant (experimental). |
+| `data-preparation-guide.md` | Comprehensive guide on preparing datasets for training. |
+| `docker-setup-guide.md` | Custom Docker runtime environments setup guide. |
+| `training-pipeline-guide.md` | End-to-end model training execution manual. |
 
 ---
 
@@ -765,11 +763,11 @@ SSL/data/
 
 All controlled in `ASR/zipformer/train.py` → `add_model_arguments()`. **This is the only file to edit for architecture changes.**
 
-| Parameter | Current Default (Zipformer-Small) | Description |
-|-----------|----------------------------------|-------------|
-| `--num-encoder-layers` | `"2,2,2,2,2,2"` | Blocks per stack (6 stacks) |
-| `--encoder-dim` | `"192,256,256,256,256,256"` | Hidden dim per stack |
-| `--feedforward-dim` | `"512,768,768,768,768,768"` | FF hidden dim per stack |
+| Parameter | Current Default (~68M Model) | Description |
+|-----------|------------------------------|-------------|
+| `--num-encoder-layers` | `"2,2,3,4,3,2"` | Blocks per stack (6 stacks) |
+| `--encoder-dim` | `"192,256,384,512,384,256"` | Hidden dim per stack |
+| `--feedforward-dim` | `"512,768,1024,1536,1024,768"` | FF hidden dim per stack |
 | `--num-heads` | `"4,4,4,8,4,4"` | Attention heads per stack |
 | `--cnn-module-kernel` | `"31,31,15,15,15,31"` | Conv kernel per stack |
 | `--query-head-dim` | `"32"` | Q/K dim per head (constant) |
@@ -777,7 +775,7 @@ All controlled in `ASR/zipformer/train.py` → `add_model_arguments()`. **This i
 | `--pos-head-dim` | `"4"` | Positional dim per head |
 | `--pos-dim` | `48` | Positional encoding dim |
 | `--downsampling-factor` | `"1,2,4,8,4,2"` | U-Net frame rate factors |
-| `--encoder-unmasked-dim` | `"192,192,256,256,256,256"` | Feature mask dim (≤ encoder_dim) |
+| `--encoder-unmasked-dim` | `"192,192,256,256,256,192"` | Feature mask dim (≤ encoder_dim) |
 | `--decoder-dim` | `512` | RNN-T decoder embedding |
 | `--joiner-dim` | `512` | Joiner hidden dim |
 
@@ -785,8 +783,8 @@ All controlled in `ASR/zipformer/train.py` → `add_model_arguments()`. **This i
 
 | Variant | Params | `encoder_dim` | `num_encoder_layers` | `feedforward_dim` |
 |---------|--------|---------------|---------------------|------------------|
-| **Zipformer-Small (current)** | **~30M** | **192,256,256,256,256,256** | **2,2,2,2,2,2** | **512,768,768,768,768,768** |
-| Repo original (before this change) | ~66M | 192,256,384,512,384,256 | 2,2,3,4,3,2 | 512,768,1024,1536,1024,768 |
+| **Repo Standard (current default)** | **~68M** | **192,256,384,512,384,256** | **2,2,3,4,3,2** | **512,768,1024,1536,1024,768** |
+| Zipformer-Small | ~30M | 192,256,256,256,256,256 | 2,2,2,2,2,2 | 512,768,768,768,768,768 |
 | Upstream icefall Large | ~80M+ | 192,256,512,512,512,256 | 2,4,4,8,4,4 | 768,1024,1536,2048,1536,1024 |
 
 ### Training Hyperparameters
