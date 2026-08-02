@@ -58,7 +58,7 @@ def get_model(params, device):
                     "encoder_embed."
                 ):
                     checkpoint.pop(item)
-            checkpoint.pop("encoder.downsample_output.bias")
+            checkpoint.pop("encoder.downsample_output.bias", None)
             missing_keys, unexpected_keys = model.encoder.load_state_dict(
                 checkpoint, strict=False
             )
@@ -254,7 +254,7 @@ def main(args):
         finetune_datamoddule = FinetuneAsrDataModule(args)
         test_dl = finetune_datamoddule.test_dataloaders(cuts)
 
-        for i, batch in enumerate(test_dl):
+        for i, batch in enumerate(tqdm.tqdm(test_dl, desc=f"Processing {os.path.basename(src)}")):
             sub_routine(batch, feature_model, model, km_dict, device)
 
         def add_label(km_dict):

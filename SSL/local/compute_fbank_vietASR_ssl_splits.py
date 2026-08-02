@@ -118,13 +118,13 @@ def compute_fbank_vietASR_ssl_splits(args):
         idx = f"{i}".zfill(num_digits)
         logging.info(f"Processing {idx}/{num_splits}")
 
-        cuts_path = output_dir / f"vietASR-ssl_cuts_{args.dataset}.{idx}.jsonl.gz"
+        cuts_path = output_dir / f"capstone-ssl_cuts_{args.dataset}.{idx}.jsonl.gz"
         # if cuts_path.is_file():
         #     logging.info(f"{cuts_path} exists - skipping")
         #     continue
 
         raw_cuts_path = (
-            output_dir / f"vietASR-ssl_cuts_{args.dataset}_raw.{idx}.jsonl.gz"
+            output_dir / f"capstone-ssl_cuts_{args.dataset}_raw.{idx}.jsonl.gz"
         )
 
         logging.info(f"Loading {raw_cuts_path}")
@@ -134,7 +134,7 @@ def compute_fbank_vietASR_ssl_splits(args):
 
         cut_set = cut_set.compute_and_store_features_batch(
             extractor=extractor,
-            storage_path=f"{output_dir}/vietASR-ssl_feats_{idx}",
+            storage_path=f"{output_dir}/capstone-ssl_feats_{idx}",
             num_workers=args.num_workers,
             batch_duration=args.batch_duration,
             overwrite=True,

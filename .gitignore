@@ -9,7 +9,12 @@ checkpoints/
 .venv/
 input-test/video-test-001.mp4
 input-test/video-test-001.wav
-SSL/zipformer_fbank
+SSL/zipformer_fbank/exp*
+SSL/zipformer_fbank/exp_ft_iter3
+SSL/zipformer_fbank/exp_ft_iter2
+SSL/zipformer_fbank/exp_ft
+SSL/zipformer_fbank/exp_iter3
+SSL/zipformer_fbank/exp_iter2
 
 # Environment and secrets
 .env

@@ -15,9 +15,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--target-path",
-        type=float,
-        default=100,
-        help="Duration for target cut in hours",
+        type=str,
+        required=True,
+        help="Path for target cut",
     )
 
     args = parser.parse_args()
@@ -30,10 +30,10 @@ if __name__ == "__main__":
 
     target_lines = []
     total_duration = 0
-    for i, index in range(num_splits):
+    for i in range(num_splits):
         idx = f"{i}".zfill(num_digits)
         cuts_path = os.path.join(
-            src_dir, f"vietASR-ssl_cuts_{subset_name}.{idx}.jsonl.gz"
+            src_dir, f"capstone-ssl_cuts_{subset_name}.{idx}.jsonl.gz"
         )
         with gzip.open(cuts_path, "rt") as f:
             lines = f.read().splitlines()

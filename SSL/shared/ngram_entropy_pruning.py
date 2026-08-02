@@ -1,34 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-#
-# Copyright 2021  Johns Hopkins University (Author: Ruizhe Huang)
-#
-# See the LICENSE file in the root directory for clarification regarding multiple authors
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""
-Usage:
-./ngram_entropy_pruning.py \
-    -threshold 1e-8 \
-    -lm download/lm/4gram.arpa \
-    -write-lm download/lm/4gram_pruned_1e8.arpa
-
-This file is from Kaldi `egs/wsj/s5/utils/lang/ngram_entropy_pruning.py`.
-This is an implementation of ``Entropy-based Pruning of Backoff Language Models''
-in the same way as SRILM.
-"""
-
-
-import argparse
 import gzip
 import logging
 import math
@@ -233,21 +202,12 @@ class Arpa:
                 return log_bo + self.log_p_raw(ngram[1:])
 
     def log_joint_prob(self, sequence):
-        # Compute the joint prob of the sequence based on the chain rule
-        # Note that sequence should be a tuple of strings
-        #
-        # Reference:
-        # https://github.com/BitSpeech/SRILM/blob/d571a4424fb0cf08b29fbfccfddd092ea969eae3/lm/src/LM.cc#L527
-
         log_joint_p = 0
         seq = sequence
         while len(seq) > 0:
             log_joint_p += self.log_p_raw(seq)
             seq = seq[:-1]
 
-            # If we're computing the marginal probability of the unigram
-            # <s> context we have to look up </s> instead since the former
-            # has prob = 0.
             if len(seq) == 1 and seq[0] == self.SOS:
                 seq = (self.EOS,)
 
@@ -460,9 +420,6 @@ def compute_numerator_denominator(lm, h):
 
 
 def prune(lm, threshold, minorder):
-    # Reference:
-    # https://github.com/BitSpeech/SRILM/blob/d571a4424fb0cf08b29fbfccfddd092ea969eae3/lm/src/NgramLM.cc#L2330
-
     for i in range(
         lm.order(), max(minorder - 1, 1), -1
     ):  # i is the order of the ngram (h, w)
@@ -476,14 +433,7 @@ def prune(lm, threshold, minorder):
             if log_bow is None:
                 log_bow = 0
 
-            # Compute numerator and denominator of the backoff weight,
-            # so that we can quickly compute the BOW adjustment due to
-            # leaving out one prob.
             numerator, denominator = compute_numerator_denominator(lm, h)
-
-            # assert abs(math.log(numerator, lm.base) - math.log(denominator, lm.base) - h_dict[h].log_bo) < 1e-5
-
-            # Compute the marginal probability of the context, P(h)
             h_log_p = lm.log_joint_prob(h)
 
             all_pruned = True
@@ -541,9 +491,6 @@ def prune(lm, threshold, minorder):
                 else:
                     all_pruned = False
 
-            # If we removed all ngrams for this context we can
-            # remove the context itself, but only if the present
-            # context is not a prefix to a longer one.
             if all_pruned and len(pruned_w_set) == len(h_dict[h]):
                 del h_dict[
                     h
@@ -557,13 +504,6 @@ def prune(lm, threshold, minorder):
                         lm.add_entry(
                             h + (w,), p_w
                         )  # the entry hw is stored at the context h
-
-                # We need to recompute the back-off weight, but
-                # this can only be done after completing the pruning
-                # of the lower-order ngrams.
-                # Reference:
-                # https://github.com/BitSpeech/SRILM/blob/d571a4424fb0cf08b29fbfccfddd092ea969eae3/flm/src/FNgramLM.cc#L2124
-
         logging.info("pruned %d %d-grams" % (count_pruned_ngrams, i))
 
     # recompute backoff weights

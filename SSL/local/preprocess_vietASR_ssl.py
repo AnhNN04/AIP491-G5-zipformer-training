@@ -58,15 +58,15 @@ def get_args():
 def preprocess_vietASR_ssl(args):
     src_dir = Path(args.src_dir)
     output_dir = Path(args.tgt_dir)
-    output_dir.mkdir(exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     dataset_parts = args.dataset.strip().split(" ", -1)
 
-    logging.info("Loading manifest (may take 4 minutes)")
+    logging.info("Loading manifest...")
     manifests = read_manifests_if_cached(
         dataset_parts=dataset_parts,
         output_dir=src_dir,
-        prefix="vietASR-ssl",
+        prefix="capstone-ssl",
         suffix="jsonl.gz",
     )
     assert manifests is not None
@@ -79,7 +79,7 @@ def preprocess_vietASR_ssl(args):
     )
     for partition, m in manifests.items():
         logging.info(f"Processing {partition}")
-        raw_cuts_path = output_dir / f"vietASR-ssl_cuts_{partition}_raw.jsonl.gz"
+        raw_cuts_path = output_dir / f"capstone-ssl_cuts_{partition}_raw.jsonl.gz"
         if raw_cuts_path.is_file():
             logging.info(f"{partition} already exists - skipping")
             continue

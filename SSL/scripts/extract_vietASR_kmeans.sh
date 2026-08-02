@@ -15,7 +15,7 @@ python zipformer_fbank/extract_kmeans_scripts/extract_kmeans.py \
     --pretrained-dir zipformer_fbank/exp-kmeans_ASR_50h-all/exp-epoch-3-tri-stage-50h \
     --epoch 195 \
     --avg 1 \
-    --max-duration 500 \
+    --max-duration 300 \
     --bpe-model data/ssl_finetune/Vietnam_bpe_2000_new/bpe.model \
     --checkpoint-type finetune \
     --use-averaged-model 1

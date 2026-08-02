@@ -118,6 +118,12 @@ def get_parser():
     parser.add_argument("--files", type=str, nargs="*", default=None)
     parser.add_argument("--do-training", action="store_true")
     parser.add_argument("--src-dir", type=str, default=None)
+    parser.add_argument(
+        "--frame-stride",
+        type=int,
+        default=1,
+        help="Subsample frames by keeping every N-th frame to reduce memory usage during K-Means training.",
+    )
     parser.add_argument("--init", default="k-means++")
     parser.add_argument("--max-iter", default=100, type=int)
     parser.add_argument("--batch-size", default=10000, type=int)
@@ -234,7 +240,7 @@ def get_model(params, device):
                     "encoder_embed."
                 ):
                     checkpoint.pop(item)
-            checkpoint.pop("encoder.downsample_output.bias")
+            checkpoint.pop("encoder.downsample_output.bias", None)
             missing_keys, unexpected_keys = model.encoder.load_state_dict(
                 checkpoint, strict=False
             )
@@ -295,7 +301,10 @@ def learn_kmeans(
     model = get_model(args, device)
 
     for batch in train_dl:
-        part_feats_holder.append(extract_feature(batch, model))
+        feats = extract_feature(batch, model)
+        if args.frame_stride > 1:
+            feats = feats[::args.frame_stride]
+        part_feats_holder.append(feats)
 
     part_feats = np.concatenate(part_feats_holder, axis=0)
     logging.info(f"data size: {part_feats.shape}")

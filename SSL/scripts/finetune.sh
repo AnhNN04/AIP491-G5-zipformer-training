@@ -1,8 +1,8 @@
 #! /usr/bin/bash
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0
 
 python zipformer_fbank/finetune.py \
-    --world-size 4 \
+    --world-size 1 \
     --num-epochs 300 \
     --start-epoch 1 \
     --use-fp16 1 \
@@ -10,7 +10,7 @@ python zipformer_fbank/finetune.py \
     --manifest-dir data/fbank \
     --bpe-model data/lang_bpe_2000/bpe.model \
     --exp-dir zipformer_fbank/exp-kmeans_ASR_100h-all/exp-epoch-9-tri-stage-100h \
-    --max-duration 1000 \
+    --max-duration 300 \
     --enable-musan 0 \
     --enable-spec-aug 0 \
     --mask-before-cnn 1 \

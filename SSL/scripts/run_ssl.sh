@@ -1,20 +1,24 @@
 #! /usr/bin/bash
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0
+export PYTHONPATH=zipformer_fbank:$PYTHONPATH
+
+git config --global --add safe.directory /workspace
 
 # change --label to the train label you want to use
 # change --label-rate to 100 when you use the k-means of Fbank as target, in other cases it should be 50
 # change --exp-dir to the path you want to save checkpoints
 
-python zipformer_fbank/pretrain.py \
-    --world-size 8 \
-    --num-epochs 20 \
-    --start-epoch 1 \
+python3 zipformer_fbank/pretrain.py \
+    --world-size 1 \
+    --num-epochs 12 \
+    --start-epoch 5 \
     --use-fp16 1 \
-    --label-type kmeans_ASR_100h \
+    --label-type kmeans \
+    --manifest-prefix ssl_data \
     --label-rate 50 \
     --sample-rate 100 \
     --exp-dir zipformer_fbank/exp \
-    --max-duration 1000 \
+    --max-duration 300 \
     --train-cut large \
     --accum-grad 1 \
     --min-keep-size 200 \

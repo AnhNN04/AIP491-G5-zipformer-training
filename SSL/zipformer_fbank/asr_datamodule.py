@@ -605,15 +605,15 @@ class FinetuneAsrDataModule:
     def train_cuts(self) -> CutSet:
         logging.info("About to get train cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "capstone_cuts_train.jsonl.gz"
         )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
+        return load_manifest_lazy(self.args.manifest_dir / "capstone_cuts_dev.jsonl.gz")
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")
+        return load_manifest_lazy(self.args.manifest_dir / "capstone_cuts_test.jsonl.gz")

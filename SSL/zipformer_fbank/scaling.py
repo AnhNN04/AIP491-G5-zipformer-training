@@ -24,7 +24,7 @@ import k2
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda.amp import custom_bwd, custom_fwd
+from torch.amp import custom_bwd, custom_fwd
 
 
 def logaddexp_onnx(x: Tensor, y: Tensor) -> Tensor:
@@ -306,7 +306,7 @@ class SoftmaxFunction(torch.autograd.Function):
     @staticmethod
     def backward(ctx, ans_grad: Tensor):
         (ans,) = ctx.saved_tensors
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast("cuda", enabled=False):
             ans_grad = ans_grad.to(torch.float32)
             ans = ans.to(torch.float32)
             x_grad = ans_grad * ans
@@ -758,7 +758,7 @@ class BalancerFunction(torch.autograd.Function):
 
         try:
             with torch.enable_grad():
-                with torch.cuda.amp.autocast(enabled=False):
+                with torch.amp.autocast("cuda", enabled=False):
                     x = x.to(torch.float32)
                     x = x.detach()
                     x.requires_grad = True
@@ -1013,7 +1013,7 @@ class WhiteningPenaltyFunction(torch.autograd.Function):
 
         try:
             with torch.enable_grad():
-                with torch.cuda.amp.autocast(enabled=False):
+                with torch.amp.autocast("cuda", enabled=False):
                     x_detached = x_orig.to(torch.float32).detach()
                     x_detached.requires_grad = True
 
@@ -1301,7 +1301,7 @@ class MulForDropout3(torch.autograd.Function):
     # returns (x * y * alpha) where alpha is a float and y doesn't require
     # grad and is zero-or-one.
     @staticmethod
-    @custom_fwd
+    @custom_fwd(device_type="cuda")
     def forward(ctx, x, y, alpha):
         assert not y.requires_grad
         ans = x * y * alpha
@@ -1310,7 +1310,7 @@ class MulForDropout3(torch.autograd.Function):
         return ans
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type="cuda")
     def backward(ctx, ans_grad):
         (ans,) = ctx.saved_tensors
         x_grad = ctx.alpha * ans_grad * (ans != 0)
@@ -1352,7 +1352,7 @@ class SwooshLFunction(torch.autograd.Function):
 
         coeff = -0.08
 
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast(enabled=False, device_type="cuda"):
             with torch.enable_grad():
                 x = x.detach()
                 x.requires_grad = True
@@ -1429,7 +1429,7 @@ class SwooshRFunction(torch.autograd.Function):
 
         zero = torch.tensor(0.0, dtype=x.dtype, device=x.device)
 
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast(enabled=False, device_type="cuda"):
             with torch.enable_grad():
                 x = x.detach()
                 x.requires_grad = True
@@ -1507,7 +1507,7 @@ def SwooshRForward(x: Tensor):
 
 class ActivationDropoutAndLinearFunction(torch.autograd.Function):
     @staticmethod
-    @custom_fwd
+    @custom_fwd(device_type="cuda")
     def forward(
         ctx,
         x: Tensor,
@@ -1546,7 +1546,7 @@ class ActivationDropoutAndLinearFunction(torch.autograd.Function):
         return x
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type="cuda")
     def backward(ctx, ans_grad: Tensor):
         saved = ctx.saved_tensors
         (x, weight, bias, dropout_mask) = saved

@@ -114,7 +114,7 @@ def prepare_vietnam(
     if manifests_exist(
         part=part,
         output_dir=output_dir,
-        prefix="vietASR-ssl",
+        prefix="capstone-ssl",
         suffix="jsonl.gz",
     ):
         logging.info(f"VietASR subset: {part} already prepared - skipping.")
@@ -124,9 +124,9 @@ def prepare_vietnam(
 
     if output_dir is not None:
         supervision_set.to_file(
-            output_dir / f"vietASR-ssl_supervisions_{part}.jsonl.gz"
+            output_dir / f"capstone-ssl_supervisions_{part}.jsonl.gz"
         )
-        recording_set.to_file(output_dir / f"vietASR-ssl_recordings_{part}.jsonl.gz")
+        recording_set.to_file(output_dir / f"capstone-ssl_recordings_{part}.jsonl.gz")
 
     manifests[part] = {"recordings": recording_set, "supervisions": supervision_set}
 

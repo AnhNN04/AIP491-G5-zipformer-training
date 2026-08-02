@@ -5,13 +5,13 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 set -eou pipefail
 
-nj=16
+nj=8
 # run step 1 to step 5 by default
 stage=1
 stop_stage=5
 
 subset_name=data
-dl_dir=$PWD/download/ssl_$subset_name
+dl_dir=/dataset/viVoice-unlabeled-data
 manifest_dir=data/manifest_$subset_name
 fbank_dir=data/ssl_$subset_name
 lang=Vietnam
@@ -69,7 +69,7 @@ if [ $stage -le 4 ] && [ $stop_stage -ge 4 ]; then
   log "Split subset: $subset_name"
   split_dir=$fbank_dir/${subset_name}_split
   if [ ! -f $split_dir/.split.done ]; then
-    lhotse split-lazy $fbank_dir/vietASR-ssl_cuts_${subset_name}_raw.jsonl.gz $split_dir $num_per_split
+    lhotse split-lazy $fbank_dir/capstone-ssl_cuts_${subset_name}_raw.jsonl.gz $split_dir $num_per_split
     touch $split_dir/.split.done
   fi
 fi

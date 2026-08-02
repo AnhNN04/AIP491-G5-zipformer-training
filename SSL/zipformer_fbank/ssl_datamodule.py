@@ -265,28 +265,26 @@ class VietASRDataModule:
     @lru_cache()
     def dev_cuts_vi_ssl(self, suffix) -> CutSet:
         logging.info("About to get dev cuts")
-        cut_lis = []
-        pool = "ssl_dev"
-        pool_name = "dev"
+        pool = "ssl_data"
+        pool_name = "data"
         split_name = f"{pool_name}_split"
         split_path = os.path.join(self.args.manifest_dir, pool, split_name)
         split_list = os.listdir(split_path)
         pattern = re.compile(
-            "vietASR-ssl_cuts_" + pool_name + suffix + r".([0-9]+).jsonl.gz"
+            "capstone-ssl_cuts_" + pool_name + suffix + r".([0-9]+).jsonl.gz"
         )
         split_list = [
             f"{self.args.manifest_dir}/{pool}/{split_name}/{item}"
             for item in split_list
             if pattern.match(item)
         ]
-        cut_lis.extend(split_list)
-        # cut_lis = sorted(cut_lis)[1:]
-        cut_lis = sorted(cut_lis)
-        # sorted_filenames = [f[1] for f in idx_filenames]
-        logging.info(f"Loading {len(cut_lis)} splits in lazy mode")
-
-        cuts_train = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_lis)
-        return cuts_train
+        cut_lis = sorted(split_list)
+        # We don't have a dedicated ssl_dev set, so we use the last split for validation
+        cut_lis = cut_lis[-1:]
+        
+        logging.info(f"Loading {len(cut_lis)} splits in lazy mode for dev")
+        cuts_valid = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_lis)
+        return cuts_valid
 
     @lru_cache()
     def train_cuts_vi_ssl(self, prefix, suffix) -> CutSet:
@@ -306,7 +304,7 @@ class VietASRDataModule:
             split_path = os.path.join(self.args.manifest_dir, pool, split_name)
             split_list = os.listdir(split_path)
             pattern = re.compile(
-                "vietASR-ssl_cuts_" + pool_name + suffix + r".([0-9]+).jsonl.gz"
+                "capstone-ssl_cuts_" + pool_name + suffix + r".([0-9]+).jsonl.gz"
             )
             split_list = [
                 f"{self.args.manifest_dir}/{pool}/{split_name}/{item}"
@@ -314,8 +312,9 @@ class VietASRDataModule:
                 if pattern.match(item)
             ]
             cut_lis.extend(split_list)
-        # cut_lis = sorted(cut_lis)[1:]
         cut_lis = sorted(cut_lis)
+        # Exclude the last split (cut004) as it is reserved for the dev set
+        cut_lis = cut_lis[:-1]
         random.shuffle(cut_lis)
         # sorted_filenames = [f[1] for f in idx_filenames]
         logging.info(f"Loading {len(cut_lis)} splits in lazy mode")
