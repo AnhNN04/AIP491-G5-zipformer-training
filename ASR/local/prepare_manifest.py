@@ -12,41 +12,42 @@ from lhotse.supervision import SupervisionSegment, SupervisionSet
 from lhotse.utils import Pathlike
 from tqdm.auto import tqdm
 
-VIETASR = (
-    "dev",
-    "test",
-    "train",
-)
-
+import random
 
 def prepare_manifest(
     corpus_dir: Pathlike,
-    language="en",
+    language="vi",  # for Vietnamese
     output_dir: Optional[Pathlike] = None,
-    normalize_text: str = "none",
+    normalize_text: str = "lower",  # change to "lower" for ASR training
     num_jobs: int = 1,
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
-    """
-    Returns the manifests which consist of the Recordings and Supervisions.
-    When all the manifests are available in the ``output_dir``, it will simply read and return them.
-
-    :param corpus_dir: Pathlike, the path of the data dir.
-    :param dataset_parts: string or sequence of strings representing dataset part names, e.g. 'train-clean-100', 'train-clean-5', 'dev-clean'.
-        By default we will infer which parts are available in ``corpus_dir``.
-    :param output_dir: Pathlike, the path where to write the manifests.
-    :param normalize_text: str, "none" or "lower",
-        for "lower" the transcripts are converted to lower-case.
-    :param num_jobs: int, number of parallel threads used for 'parse_utterance' calls.
-    :return: a Dict whose key is the dataset part, and the value is Dicts with the keys 'audio' and 'supervisions'.
-    """
     corpus_dir = Path(corpus_dir)
     assert corpus_dir.is_dir(), f"No such directory: {corpus_dir}"
 
-    dataset_parts = set(VIETASR).intersection(
-        path.name for path in corpus_dir.glob("*")
-    )
-    if not dataset_parts:
-        raise ValueError(f"Could not find any of splits in: {corpus_dir}")
+    audio_dir = corpus_dir / "audio"
+    transcripts_dir = corpus_dir / "transcripts"
+    assert audio_dir.is_dir(), f"No such directory: {audio_dir}"
+    assert transcripts_dir.is_dir(), f"No such directory: {transcripts_dir}"
+
+    # Get all wav files
+    wav_files = sorted(list(audio_dir.glob("*.wav")))
+    if not wav_files:
+        raise ValueError(f"Could not find any .wav files in: {audio_dir}")
+
+    # Shuffle and split (90% train, 5% dev, 5% test)
+    random.seed(42)
+    random.shuffle(wav_files)
+
+    num_total = len(wav_files)
+    num_dev = int(num_total * 0.05)
+    num_test = int(num_total * 0.05)
+    num_train = num_total - num_dev - num_test
+
+    splits = {
+        "train": wav_files[:num_train],
+        "dev": wav_files[num_train:num_train + num_dev],
+        "test": wav_files[num_train + num_dev:]
+    }
 
     manifests = {}
 
@@ -55,34 +56,24 @@ def prepare_manifest(
         output_dir.mkdir(parents=True, exist_ok=True)
         # Maybe the manifests already exist: we can read them and save a bit of preparation time.
         manifests = read_manifests_if_cached(
-            dataset_parts=dataset_parts, output_dir=output_dir
+            dataset_parts=splits.keys(), output_dir=output_dir, prefix="capstone"
         )
 
     with ThreadPoolExecutor(num_jobs) as ex:
-        for part in tqdm(dataset_parts, desc="Dataset parts"):
+        for part, wav_list in tqdm(splits.items(), desc="Dataset parts"):
             logging.info(f"Processing subset: {part}")
-            if manifests_exist(part=part, output_dir=output_dir, prefix="vietASR"):
+            if manifests_exist(part=part, output_dir=output_dir, prefix="capstone"):
                 logging.info(f"Subset: {part} already prepared - skipping.")
                 continue
             recordings = []
             supervisions = []
-            part_path = corpus_dir / part
             futures = []
-            for trans_path in tqdm(
-                part_path.rglob("*.trans.txt"), desc="Distributing tasks", leave=False
-            ):
-                # "trans_path" file contains lines like:
-                #
-                #   121-121726-0000 ALSO A POPULAR CONTRIVANCE
-                #   121-121726-0001 HARANGUE THE TIRESOME PRODUCT OF A TIRELESS TONGUE
-                #   121-121726-0002 ANGOR PAIN PAINFUL TO HEAR
-                #
-                # We will create a separate Recording and SupervisionSegment for those.
-                with open(trans_path) as f:
-                    for line in f:
-                        futures.append(
-                            ex.submit(parse_utterance, trans_path, line, language)
-                        )
+            
+            for audio_path in wav_list:
+                transcript_path = transcripts_dir / f"{audio_path.stem}.txt"
+                futures.append(
+                    ex.submit(parse_utterance, audio_path, transcript_path, language)
+                )
 
             for future in tqdm(futures, desc="Processing", leave=False):
                 result = future.result()
@@ -108,12 +99,8 @@ def prepare_manifest(
             validate_recordings_and_supervisions(recording_set, supervision_set)
 
             if output_dir is not None:
-                supervision_set.to_file(
-                    output_dir / f"vietASR_supervisions_{part}.jsonl.gz"
-                )
-                recording_set.to_file(
-                    output_dir / f"vietASR_recordings_{part}.jsonl.gz"
-                )
+                supervision_set.to_file(output_dir / f"capstone_supervisions_{part}.jsonl.gz")
+                recording_set.to_file(output_dir / f"capstone_recordings_{part}.jsonl.gz")
 
             manifests[part] = {
                 "recordings": recording_set,
@@ -124,18 +111,19 @@ def prepare_manifest(
 
 
 def parse_utterance(
-    script_path: Path,
-    line: str,
+    audio_path: Path,
+    transcript_path: Path,
     language: str,
 ) -> Optional[Tuple[Recording, SupervisionSegment]]:
-    recording_id, text = line.strip().split(maxsplit=1)
-    # Create the Recording first
-    audio_path = script_path.parent / f"{recording_id}.wav"
-    if not audio_path.is_file():
-        logging.warning(f"No such file: {audio_path}")
+    if not audio_path.is_file() or not transcript_path.is_file():
+        logging.warning(f"Missing file pair: {audio_path} or {transcript_path}")
         return None
+    
+    recording_id = audio_path.stem
+    with open(transcript_path, "r", encoding="utf-8") as f:
+        text = f.read().strip()
+
     recording = Recording.from_file(audio_path, recording_id=recording_id)
-    # Then, create the corresponding supervisions
     segment = SupervisionSegment(
         id=recording_id,
         recording_id=recording_id,
@@ -143,8 +131,8 @@ def parse_utterance(
         duration=recording.duration,
         channel=0,
         language=language,
-        speaker=re.sub(r"-.*", r"", recording.id),
-        text=text.strip(),
+        speaker="unknown",
+        text=text,
     )
     return recording, segment
 

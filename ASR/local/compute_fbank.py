@@ -94,7 +94,7 @@ def compute_fbank(
     else:
         dataset_parts = dataset.split(" ", -1)
 
-    prefix = "vietASR"
+    prefix = "capstone"
     suffix = "jsonl.gz"
     manifests = read_manifests_if_cached(
         dataset_parts=dataset_parts,
