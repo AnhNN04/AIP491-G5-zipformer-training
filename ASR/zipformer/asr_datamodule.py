@@ -1,21 +1,3 @@
-# Copyright      2021  Piotr Żelasko
-# Copyright      2022  Xiaomi Corporation     (Author: Mingshuang Luo)
-#
-# See the LICENSE file in the root directory for clarification regarding multiple authors
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 import argparse
 import inspect
 import logging
@@ -60,8 +42,7 @@ class AsrDataModule:
     """
     DataModule for k2 ASR experiments.
     It assumes there is always one train and valid dataloader,
-    but there can be multiple test dataloaders (e.g. LibriSpeech test-clean
-    and test-other).
+    but there can be multiple test dataloaders.
 
     It contains all the common data pipeline modules used in ASR
     experiments, e.g.:
@@ -70,8 +51,6 @@ class AsrDataModule:
     - cut concatenation,
     - augmentation,
     - on-the-fly feature extraction
-
-    This class should be derived for specific corpora used in ASR tasks.
     """
 
     def __init__(self, args: argparse.Namespace):
@@ -235,9 +214,6 @@ class AsrDataModule:
                 f"Using cut concatenation with duration factor "
                 f"{self.args.duration_factor} and gap {self.args.gap}."
             )
-            # Cut concatenation should be the first transform in the list,
-            # so that if we e.g. mix noise in, it will fill the gaps between
-            # different utterances.
             transforms = [
                 CutConcatenate(
                     duration_factor=self.args.duration_factor, gap=self.args.gap
@@ -248,9 +224,6 @@ class AsrDataModule:
         if self.args.enable_spec_aug:
             logging.info("Enable SpecAugment")
             logging.info(f"Time warp factor: {self.args.spec_aug_time_warp_factor}")
-            # Set the value of num_frame_masks according to Lhotse's version.
-            # In different Lhotse's versions, the default of num_frame_masks is
-            # different.
             num_frame_masks = 10
             num_frame_masks_parameter = inspect.signature(
                 SpecAugment.__init__
@@ -287,16 +260,6 @@ class AsrDataModule:
             )
 
         if self.args.on_the_fly_feats:
-            # NOTE: the PerturbSpeed transform should be added only if we
-            # remove it from data prep stage.
-            # Add on-the-fly speed perturbation; since originally it would
-            # have increased epoch size by 3, we will apply prob 2/3 and use
-            # 3x more epochs.
-            # Speed perturbation probably should come first before
-            # concatenation, but in principle the transforms order doesn't have
-            # to be strict (e.g. could be randomized)
-            # transforms = [PerturbSpeed(factors=[0.9, 1.1], p=2/3)] + transforms   # noqa
-            # Drop feats to be on the safe side.
             if use_kmeans:
                 train = PseudoRecognitionDataset(
                     cut_transforms=transforms,
@@ -339,9 +302,6 @@ class AsrDataModule:
         if sampler_state_dict is not None:
             logging.info("Loading sampler state dict")
             train_sampler.load_state_dict(sampler_state_dict)
-
-        # 'seed' is derived from the current random state, which will have
-        # previously been set in the main process.
         seed = torch.randint(0, 100000, ()).item()
         worker_init_fn = _SeedWorkers(seed)
 
@@ -446,15 +406,15 @@ class AsrDataModule:
     def train_cuts(self) -> CutSet:
         logging.info("About to get train cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "vietASR_cuts_train.jsonl.gz"
+            self.args.manifest_dir / "capstone_cuts_train.jsonl.gz"
         )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_dev.jsonl.gz")
+        return load_manifest_lazy(self.args.manifest_dir / "capstone_cuts_dev.jsonl.gz")
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "vietASR_cuts_test.jsonl.gz")
+        return load_manifest_lazy(self.args.manifest_dir / "capstone_cuts_test.jsonl.gz")

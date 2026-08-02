@@ -10,7 +10,7 @@ python zipformer/train.py \
     --manifest-dir data/fbank \
     --bpe-model ${bpe_model} \
     --bpe-model data/lang_bpe_2000/bpe.model \
-    --max-duration 1000 \
+    --max-duration 300 \
     --enable-musan 0 \
     --exp-dir zipformer/exp \
     --enable-spec-aug 1 \

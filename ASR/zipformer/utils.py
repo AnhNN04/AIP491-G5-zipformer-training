@@ -32,7 +32,7 @@ def get_avg_checkpoint(
             logging.info(f"averaging {filenames}")
             return average_checkpoints(filenames, device=device)
         elif avg == 1:
-            return torch.load(f"{exp_dir}/epoch-{epoch}.pt", map_location=device)[
+            return torch.load(f"{exp_dir}/epoch-{epoch}.pt", map_location=device, weights_only=False)[
                 "model"
             ]
         else:

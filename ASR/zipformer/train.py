@@ -101,7 +101,10 @@ from optim import Eden, ScaledAdam
 from scaling import ScheduledFloat
 from subsampling import Conv2dSubsampling
 from torch import Tensor
-from torch.cuda.amp import GradScaler
+# from torch.cuda.amp import GradScaler # deprecate
+# ADD NEW
+from torch.amp import GradScaler
+# ADD NEW
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from zipformer import Zipformer2
@@ -134,7 +137,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--num-encoder-layers",
         type=str,
-        default="2,2,2,2,2,2",  # Zipformer-Small: stacks 3-5 reduced from 3,4,3
+        default="2,2,3,4,3,2",
         help="Number of zipformer encoder layers per stack, comma separated.",
     )
 
@@ -148,7 +151,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--feedforward-dim",
         type=str,
-        default="512,768,768,768,768,768",  # Zipformer-Small: stacks 3-5 reduced from 1024,1536,1024
+        default="512,768,1024,1536,1024,768",
         help="Feedforward dimension of the zipformer encoder layers, per stack, comma separated.",
     )
 
@@ -162,7 +165,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--encoder-dim",
         type=str,
-        default="192,256,256,256,256,256",  # Zipformer-Small: stacks 3-5 reduced from 384,512,384
+        default="192,256,384,512,384,256",
         help="Embedding dimension in encoder stacks: a single int or comma-separated list.",
     )
 
@@ -197,7 +200,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--encoder-unmasked-dim",
         type=str,
-        default="192,192,256,256,256,256",  # Zipformer-Small: stack 6 updated 192→256 to match encoder_dim
+        default="192,192,256,256,256,192",
         help="Unmasked dimensions in the encoders, relates to augmentation during training.  "
         "A single int or comma-separated list.  Must be <= each corresponding encoder_dim.",
     )
@@ -1090,7 +1093,7 @@ def train_one_epoch(
         batch_size = len(batch["supervisions"]["text"])
 
         try:
-            with torch.cuda.amp.autocast(enabled=params.use_fp16):
+            with torch.amp.autocast("cuda", enabled=params.use_fp16):
                 loss, loss_info = compute_loss(
                     params=params,
                     model=model,
@@ -1391,7 +1394,9 @@ def run(rank, world_size, args):
     #         params=params,
     #     )
 
-    scaler = GradScaler(enabled=params.use_fp16, init_scale=1.0)
+    # scaler = GradScaler(enabled=params.use_fp16, init_scale=1.0) # deprecate: changes: GradScaler('cuda', args...)
+    scaler = GradScaler('cuda', enabled=params.use_fp16, init_scale=1.0) # ADD NEW
+    # scaler = 
     if checkpoints and "grad_scaler" in checkpoints:
         logging.info("Loading grad scaler state dict")
         scaler.load_state_dict(checkpoints["grad_scaler"])
