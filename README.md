@@ -1,6 +1,6 @@
 # ASR Module Training Capstone
 
-This repository contains the training pipeline and model definitions for the Automatic Speech Recognition (ASR) module capstone project. The system utilizes a Zipformer-Small (~30M parameters) architecture with an RNN-Transducer (RNN-T) head, built on top of the `lhotse` and `icefall` frameworks.
+This repository contains the training pipeline and model definitions for the Automatic Speech Recognition (ASR) module capstone project. The system utilizes a standard Zipformer (~68M parameters) architecture with an RNN-Transducer (RNN-T) head, built on top of the `lhotse` and `icefall` frameworks.
 
 ## Overview
 
