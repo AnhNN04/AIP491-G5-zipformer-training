@@ -1,1 +1,0 @@
-../../../k2/torch/csrc/torch_api_test.cc
