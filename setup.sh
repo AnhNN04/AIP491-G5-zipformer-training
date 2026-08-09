@@ -20,7 +20,7 @@ fi
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 2. Export necessary paths to PYTHONPATH
-export PYTHONPATH="${PROJECT_ROOT}/external/icefall:${PROJECT_ROOT}/ASR/zipformer:${PYTHONPATH:-}"
+export PYTHONPATH="${PROJECT_ROOT}/ASR/zipformer:${PYTHONPATH:-}"
 echo "PYTHONPATH configured with project directories."
 
 # 3. Export protobuf environment variable to prevent segfaults
