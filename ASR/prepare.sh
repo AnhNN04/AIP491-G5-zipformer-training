@@ -8,7 +8,7 @@ stop_stage=3
 
 dl_dir=/dataset/100h-labeled-data
 
-. shared/parse_options.sh || exit 1
+. ../SSL/shared/parse_options.sh || exit 1
 
 vocab_sizes=(
   # 5000
