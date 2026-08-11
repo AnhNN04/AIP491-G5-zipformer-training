@@ -2,7 +2,6 @@ import glob
 import json
 import logging
 import os
-from argparse import ArgumentParser
 from collections import defaultdict
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -119,17 +118,10 @@ def prepare_vietnam(
 if __name__ == "__main__":
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=formatter, level=logging.INFO)
-    parser = ArgumentParser()
-    parser.add_argument("corpus_dir", type=str)
-    parser.add_argument("part", type=str)
-    parser.add_argument("output_dir", type=str)
-    parser.add_argument("--lang", type=str)
-    parser.add_argument("-j", "--num-jobs", type=int, default=1)
-    args = parser.parse_args()
     prepare_vietnam(
-        corpus_dir=args.corpus_dir,
-        output_dir=args.output_dir,
-        part=args.part,
-        lang=args.lang,
-        num_jobs=args.num_jobs,
+        corpus_dir="/dataset/viVoice-unlabeled-data",
+        output_dir=Path("data/ssl_data"),
+        part="ssl",
+        lang=None,
+        num_jobs=1,
     )

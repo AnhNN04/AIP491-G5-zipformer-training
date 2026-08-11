@@ -69,10 +69,6 @@ def set_batch_count(model: Union[nn.Module, DDP], batch_count: float) -> None:
         if hasattr(module, "name"):
             module.name = name
 
-
-
-
-
 def get_params() -> AttributeDict:
     """Return a dict containing training parameters.
     """

@@ -1,4 +1,3 @@
-import argparse
 import logging
 import multiprocessing
 import os
@@ -15,59 +14,6 @@ torch.set_num_interop_threads(1)
 
 device_lock = Lock()
 
-def get_parser():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-
-    parser.add_argument("task", type=str, default="run")
-
-    parser.add_argument(
-        "--src-dir",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--dataset",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--num-workers",
-        type=int,
-        default=20,
-        help="Number of dataloading workers used for reading the audio.",
-    )
-
-    parser.add_argument(
-        "--batch-duration",
-        type=float,
-        default=600.0,
-        help="The maximum number of audio seconds in a batch."
-        "Determines batch size dynamically.",
-    )
-
-    parser.add_argument(
-        "--num-splits",
-        type=int,
-        help="The number of splits of the subset",
-    )
-
-    parser.add_argument(
-        "--start",
-        type=int,
-        default=0,
-        help="Process pieces starting from this number (inclusive).",
-    )
-
-    parser.add_argument(
-        "--stop",
-        type=int,
-        default=-1,
-        help="Stop processing pieces until this number (exclusive).",
-    )
-
-    return parser
 
 def compute_fbank_asr_ssl_splits(args):
     num_splits = args.num_splits
@@ -122,13 +68,47 @@ def compute_fbank_asr_ssl_splits(args):
         cut_set.to_file(cuts_path)
         logging.info(f"Saved to {cuts_path}")
 
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
 def main():
+    import sys
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=formatter, level=logging.INFO)
 
-    parser = get_parser()
-    args = parser.parse_args()
-    task = args.task
+    task = "parallel"
+    if len(sys.argv) > 1:
+        task = sys.argv[1]
+
+    args = Namespace(
+        task=task,
+        src_dir="data/ssl_data",
+        dataset="ssl",
+        num_workers=20,
+        batch_duration=600.0,
+        num_splits=10,
+        start=0,
+        stop=-1
+    )
+
+    if task == "run":
+        for i in range(len(sys.argv)):
+            if sys.argv[i] == "--src-dir":
+                args.src_dir = sys.argv[i+1]
+            elif sys.argv[i] == "--dataset":
+                args.dataset = sys.argv[i+1]
+            elif sys.argv[i] == "--num-workers":
+                args.num_workers = int(sys.argv[i+1])
+            elif sys.argv[i] == "--batch-duration":
+                args.batch_duration = float(sys.argv[i+1])
+            elif sys.argv[i] == "--num-splits":
+                args.num_splits = int(sys.argv[i+1])
+            elif sys.argv[i] == "--start":
+                args.start = int(sys.argv[i+1])
+            elif sys.argv[i] == "--stop":
+                args.stop = int(sys.argv[i+1])
+
     if task == "run":
         logging.info(vars(args))
         compute_fbank_asr_ssl_splits(args)
