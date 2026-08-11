@@ -6,7 +6,7 @@ from lhotse.cut import CutSet
 from lhotse.dataset.input_strategies import BatchIO, PrecomputedFeatures
 from lhotse.utils import compute_num_frames, ifnone
 from lhotse.workarounds import Hdf5MemoryIssueFix
-from torch.utils.data.dataloader import DataLoader, default_collate
+from torch.utils.data.dataloader import default_collate
 
 def disc_to_label(text):
     pre = ""

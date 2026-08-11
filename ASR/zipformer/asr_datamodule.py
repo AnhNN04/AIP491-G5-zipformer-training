@@ -70,7 +70,7 @@ class AsrDataModule:
                 CutMix(cuts=cuts_musan, p=0.5, snr=(10, 20), preserve_id=True)
             )
         else:
-            logging.info("Disable MUSAN")
+            logging.info("Disable")
 
         if self.concatenate_cuts:
             logging.info(
@@ -234,36 +234,6 @@ class AsrDataModule:
         )
 
         return valid_dl
-
-    def test_dataloaders(self, cuts: CutSet, use_kmeans: bool = False) -> DataLoader:
-        logging.debug("About to create test dataset")
-        if use_kmeans:
-            test = PseudoRecognitionDataset(
-                input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80)))
-                if self.on_the_fly_feats
-                else eval(self.input_strategy)(),
-                return_cuts=self.return_cuts,
-            )
-        else:
-            test = K2SpeechRecognitionDataset(
-                input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80)))
-                if self.on_the_fly_feats
-                else eval(self.input_strategy)(),
-                return_cuts=self.return_cuts,
-            )
-        sampler = DynamicBucketingSampler(
-            cuts,
-            max_duration=self.max_duration,
-            shuffle=False,
-        )
-        logging.debug("About to create test dataloader")
-        test_dl = DataLoader(
-            test,
-            batch_size=None,
-            sampler=sampler,
-            num_workers=self.num_workers,
-        )
-        return test_dl
 
     @lru_cache()
     def train_cuts(self) -> CutSet:
