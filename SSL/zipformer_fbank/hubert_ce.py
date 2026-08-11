@@ -1,22 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
 
 import argparse
 import logging
@@ -32,7 +13,6 @@ from subsampling import Conv2dSubsampling
 from torch._C import device
 from utils import LayerNorm
 from zipformer import Zipformer2
-
 
 def compute_mask_indices(
     shape: Tuple[int, int],
@@ -50,37 +30,15 @@ def compute_mask_indices(
     seed: Optional[int] = None,
     epoch: Optional[int] = None,
     indices: Optional[torch.Tensor] = None,
-    idc_select_ver: int = 1,  # 2 to reproduce mask_tokens_dataset
-    num_mask_ver: int = 2,  # 2 to reproduce mask_tokens_dataset
+    idc_select_ver: int = 1,  
+    num_mask_ver: int = 2,  
 ) -> np.ndarray:
-    """
-    Computes random mask spans for a given shape
-
-    Args:
-        shape: the the shape for which to compute masks.
-            should be of size 2 where first element is batch size and 2nd is timesteps
-        padding_mask: optional padding mask of the same size as shape, which will prevent masking padded elements
-        mask_prob: probability for each token to be chosen as start of the span to be masked. this will be multiplied by
-            number of timesteps divided by length of mask span to mask approximately this percentage of all elements.
-            however due to overlaps, the actual number will be smaller (unless no_overlap is True)
-        mask_type: how to compute mask lengths
-            static = fixed size
-            uniform = sample from uniform distribution [mask_other, mask_length*2]
-            normal = sample from normal distribution with mean mask_length and stdev mask_other. mask is min 1 element
-            poisson = sample from possion distribution with lambda = mask length
-        min_masks: minimum number of masked spans
-        no_overlap: if false, will switch to an alternative recursive algorithm that prevents spans from overlapping
-        min_space: only used if no_overlap is True, this is how many elements to keep unmasked between spans
-        require_same_masks: if true, will randomly drop out masks until same amount of masks remains in each sample
-        mask_dropout: randomly dropout this percentage of masks in each example
-    """
 
     bsz, all_sz = shape
     mask = np.full((bsz, all_sz), False)
 
     if num_mask_ver == 1:
         all_num_mask = int(
-            # add a random number for probabilistic rounding
             mask_prob * all_sz / float(mask_length)
             + np.random.rand()
         )
@@ -104,7 +62,6 @@ def compute_mask_indices(
         if num_mask_ver == 1:
             if padding_mask is not None:
                 num_mask = int(
-                    # add a random number for probabilistic rounding
                     mask_prob * sz / float(mask_length)
                     + np.random.rand()
                 )
@@ -113,7 +70,6 @@ def compute_mask_indices(
                 num_mask = all_num_mask
         elif num_mask_ver == 2:
             num_mask = int(
-                # add a random number for probabilistic rounding
                 mask_prob * sz / float(mask_length)
                 + rng.random()
             )
@@ -225,10 +181,8 @@ def compute_mask_indices(
 
     return mask
 
-
 def _to_int_tuple(s: str):
     return tuple(map(int, s.split(",")))
-
 
 class HubertModel(nn.Module):
     def __init__(
@@ -244,11 +198,11 @@ class HubertModel(nn.Module):
             dropout=ScheduledFloat((0.0, 0.3), (20000.0, 0.1)),
         )
         self.feature_ds_rate = (
-            2  # TODO: this is from Conv2dSubsampling, I'm not sure if this is right
+            2  
         )
         self.feat2tar_ratio = (
             cfg.label_rate * self.feature_ds_rate / cfg.sample_rate
-        )  # TODO feature_ds_rate 320
+        )  
         encoder_input_dim = _to_int_tuple(cfg.encoder_dim)[0]
         encoder_output_dim = max(_to_int_tuple(cfg.encoder_dim))
 
@@ -311,14 +265,12 @@ class HubertModel(nn.Module):
         self.untie_final_proj = cfg.untie_final_proj
         self.final_proj = nn.Linear(encoder_output_dim, sum(cfg.num_classes))
 
-        # modules below are not needed during fine-tuning
         self.num_classes = cfg.num_classes
         self.pred_masked_weight = cfg.pred_masked_weight
         self.pred_nomask_weight = cfg.pred_nomask_weight
         self.loss_weights = cfg.loss_weights
 
     def upgrade_state_dict_named(self, state_dict, name):
-        """Upgrade a (possibly old) state dict for new versions of fairseq."""
 
         super().upgrade_state_dict_named(state_dict, name)
         return state_dict
@@ -394,7 +346,7 @@ class HubertModel(nn.Module):
         self, source: torch.Tensor, x_lens: torch.Tensor
     ) -> torch.Tensor:
         features, x_lens = self.encoder_embed(source, x_lens)
-        features = features.transpose(1, 2)  # for consistence with original hubert cnn
+        features = features.transpose(1, 2)  
         return features, x_lens
 
     def forward_targets(
@@ -402,7 +354,6 @@ class HubertModel(nn.Module):
         features: torch.Tensor,
         target_list: List[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # Trim features to ensure labels exist and then get aligned labels
         feat_tsz = features.size(2)
         targ_tsz = min([t.size(1) for t in target_list])
         if self.feat2tar_ratio * feat_tsz > targ_tsz:
@@ -418,10 +369,8 @@ class HubertModel(nn.Module):
         target_list: List[torch.Tensor],
         mask: torch.Tensor,
     ) -> Tuple[torch.Tensor, List[torch.Tensor], torch.Tensor]:
-        # Trim features to ensure labels exist and then get aligned labels
         feat_tsz = features.size(2)
         targ_tsz = min([t.size(1) for t in target_list])
-        # assert mask.shape[1] == targ_tsz
         if self.feat2tar_ratio * feat_tsz > targ_tsz:
             feat_tsz = int(targ_tsz / self.feat2tar_ratio)
             features = features[..., :feat_tsz]
@@ -452,7 +401,6 @@ class HubertModel(nn.Module):
         mask: bool = True,
         features_only: bool = False,
     ):
-        """output layer is 1-based"""
         if padding_mask is not None:
             x_lens = (~padding_mask).sum(dim=-1)
         else:
@@ -510,12 +458,6 @@ class HubertModel(nn.Module):
                 x = features
                 mask_indices = None
 
-        # feature: (B, T, D), float
-        # target: (B, T), long
-        # x: (B, T, D), float -> (T, B, D), float
-        # padding_mask: (B, T), bool
-        # mask_indices: (B, T), bool
-
         x = x.transpose(0, 1)
         x, x_lens, layer_features = self.encoder(x, (~padding_mask).sum(dim=-1))
         x = x.transpose(0, 1)
@@ -545,12 +487,6 @@ class HubertModel(nn.Module):
         else:
             logit_u_list = [None for _ in target_list]
 
-        # result = {
-        #     "logit_m_list": logit_m_list,
-        #     "logit_u_list": logit_u_list,
-        #     "padding_mask": padding_mask,
-        #     "features_pen": features_pen,
-        # }
         targ_m_list = target_list[0][masked_indices]
         targ_m_list = targ_m_list.long()
         targ_m_list = [targ_m_list for _ in range(len(target_list))]
@@ -681,10 +617,6 @@ class HubertModel(nn.Module):
             "loss": loss.item() if reduce else loss,
             **logging_output,
         }
-
-        # for lk in self.log_keys:
-        #     if lk in net_output:
-        #         logging_output[lk] = float((net_output[lk]))
 
         def compute_correct(logits, target):
             if logits.numel() == 0:

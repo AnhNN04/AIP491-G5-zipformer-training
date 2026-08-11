@@ -10,24 +10,7 @@ from lhotse.dataset.collation import collate_features
 from lhotse.workarounds import Hdf5MemoryIssueFix
 from torch.utils.data.dataloader import default_collate
 
-
 class HubertDataset(torch.utils.data.Dataset):
-    """
-    In this implementation, there will always be a single channel.
-
-    Returns:
-
-    .. code-block::
-
-        {
-            'features': (B, T, F) float tensor
-        }
-
-    Dimension symbols legend:
-    * ``B`` - batch size (number of Cuts)
-    * ``T`` - number of frames of the longest Cut
-    * ``F`` - number of features
-    """
 
     def __init__(
         self,
@@ -48,16 +31,12 @@ class HubertDataset(torch.utils.data.Dataset):
             max_sample_size if max_sample_size is not None else sys.maxsize
         )
 
-        # This attribute is a workaround to constantly growing HDF5 memory
-        # throughout the epoch. It regularly closes open file handles to
-        # reset the internal HDF5 caches.
         self.hdf5_fix = Hdf5MemoryIssueFix(reset_interval=100)
 
     def __getitem__(self, cuts: CutSet) -> Dict[str, Any]:
         self._validate(cuts)
         self.hdf5_fix.update()
 
-        # Sort the cuts by duration so that the first one determines the batch time dimensions.
         cuts = cuts.sort_by_duration(ascending=False)
 
         features = [torch.from_numpy(cut.load_features()) for cut in cuts]
@@ -135,7 +114,6 @@ class HubertDataset(torch.utils.data.Dataset):
 
         padding_mask = (
             torch.BoolTensor(collated_features.shape[:-1]).fill_(False)
-            # if self.pad_feature else None
         )
         feature_starts = [0 for _ in features]
         for i, (feature, feature_len) in enumerate(zip(features, feature_lens)):
@@ -165,7 +143,6 @@ class HubertDataset(torch.utils.data.Dataset):
         pad_to_multiple=1,
         pad_to_bsz=None,
     ):
-        """Convert a list of 1d tensors into a padded 2d tensor."""
         size = max(v.size(0) for v in values)
         size = size if pad_to_length is None else max(size, pad_to_length)
         if pad_to_multiple != 1 and size % pad_to_multiple != 0:
@@ -178,7 +155,6 @@ class HubertDataset(torch.utils.data.Dataset):
             assert dst.numel() == src.numel()
             if move_eos_to_beginning:
                 if eos_idx is None:
-                    # if no eos_idx is specified, then use the last token in src
                     dst[0] = src[-1]
                 else:
                     dst[0] = eos_idx
@@ -206,19 +182,7 @@ class HubertDataset(torch.utils.data.Dataset):
         targets = self.collate_tokens(targets, pad_idx=pad, left_pad=False)
         return targets, lengths
 
-
 class HubertAsrDataset(torch.utils.data.Dataset):
-    """
-    In this implementation, there will always be a single channel.
-
-    Returns:
-
-    .. code-block::
-
-        {
-            'audio': (B x NumSamples) float tensor
-        }
-    """
 
     def __init__(
         self,
@@ -235,16 +199,12 @@ class HubertAsrDataset(torch.utils.data.Dataset):
             max_sample_size if max_sample_size is not None else sys.maxsize
         )
 
-        # This attribute is a workaround to constantly growing HDF5 memory
-        # throughout the epoch. It regularly closes open file handles to
-        # reset the internal HDF5 caches.
         self.hdf5_fix = Hdf5MemoryIssueFix(reset_interval=100)
 
     def __getitem__(self, cuts: CutSet) -> Dict[str, Any]:
         self._validate(cuts)
         self.hdf5_fix.update()
 
-        # Sort the cuts by duration so that the first one determines the batch time dimensions.
         cuts = cuts.sort_by_duration(ascending=False)
 
         features = [torch.from_numpy(cut.load_features()) for cut in cuts]
@@ -318,7 +278,6 @@ class HubertAsrDataset(torch.utils.data.Dataset):
 
         padding_mask = (
             torch.BoolTensor(collated_features.shape[:-1]).fill_(False)
-            # if self.pad_feature else None
         )
         feature_starts = [0 for _ in features]
         for i, (feature, feature_len) in enumerate(zip(features, feature_lens)):
@@ -336,7 +295,6 @@ class HubertAsrDataset(torch.utils.data.Dataset):
                     feature, feature_size
                 )
         return collated_features, padding_mask, feature_starts
-
 
 if __name__ == "__main__":
     from lhotse import load_manifest_lazy

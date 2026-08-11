@@ -13,7 +13,7 @@ import torch
 from dataset import PseudoRecognitionDataset
 from icefall.utils import str2bool
 from lhotse import CutSet, Fbank, FbankConfig, load_manifest, load_manifest_lazy
-from lhotse.dataset import (  # noqa F401 for PrecomputedFeatures
+from lhotse.dataset import (  
     CutConcatenate,
     CutMix,
     DynamicBucketingSampler,
@@ -22,13 +22,12 @@ from lhotse.dataset import (  # noqa F401 for PrecomputedFeatures
     SimpleCutSampler,
     SpecAugment,
 )
-from lhotse.dataset.input_strategies import (  # noqa F401 For AudioSamples
+from lhotse.dataset.input_strategies import (  
     AudioSamples,
     OnTheFlyFeatures,
 )
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
-
 
 class _SeedWorkers:
     def __init__(self, seed: int):
@@ -37,21 +36,7 @@ class _SeedWorkers:
     def __call__(self, worker_id: int):
         fix_random_seed(self.seed + worker_id)
 
-
 class AsrDataModule:
-    """
-    DataModule for k2 ASR experiments.
-    It assumes there is always one train and valid dataloader,
-    but there can be multiple test dataloaders.
-
-    It contains all the common data pipeline modules used in ASR
-    experiments, e.g.:
-    - dynamic batch size,
-    - bucketing samplers,
-    - cut concatenation,
-    - augmentation,
-    - on-the-fly feature extraction
-    """
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -191,13 +176,6 @@ class AsrDataModule:
         sampler_state_dict: Optional[Dict[str, Any]] = None,
         use_kmeans: bool = False,
     ) -> DataLoader:
-        """
-        Args:
-          cuts_train:
-            CutSet for training.
-          sampler_state_dict:
-            The state dict for the training sampler.
-        """
         transforms = []
         if self.args.enable_musan:
             logging.info("Enable MUSAN")

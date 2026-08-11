@@ -8,7 +8,6 @@ from icefall.checkpoint import (
     load_checkpoint,
 )
 
-
 def get_avg_checkpoint(
     exp_dir=None,
     epoch=1,

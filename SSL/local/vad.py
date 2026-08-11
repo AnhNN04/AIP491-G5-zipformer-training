@@ -8,7 +8,6 @@ import soundfile as sf
 import torch
 from tqdm import tqdm
 
-
 def routine(wav_file, tgt_dir, model, device, args):
     try:
         speech, sample_rate = sf.read(wav_file)
@@ -26,7 +25,7 @@ def routine(wav_file, tgt_dir, model, device, args):
     os.makedirs(tgt_dir, exist_ok=True)
 
     if args.streaming:
-        chunk_size = 200  # ms
+        chunk_size = 200  
         chunk_stride = int(chunk_size * sample_rate / 1000)
 
         cache = {}
@@ -75,7 +74,6 @@ def routine(wav_file, tgt_dir, model, device, args):
                     start = item[0]
                     end = item[1]
                 elif start_time - end / 1000 > max_blank_time:
-                    # not merget when there is too much blank
                     if end / 1000 - start / 1000 > min_time:
                         new_value.append([start, end])
                     start = item[0]
@@ -111,11 +109,9 @@ def routine(wav_file, tgt_dir, model, device, args):
         for j, segment in enumerate(segments):
             sf.write(os.path.join(tgt_dir, f"{i}-{j}.wav"), segment, sample_rate)
 
-
 def main(rank, args, task_lines):
     task_dir = args.task_dir
     num_gpus = torch.cuda.device_count()
-    # os.environ["CUDA_VISIBLE_DEVICES"] = str(rank%num_gpus)
     world_size = args.world_size
     from funasr import AutoModel
 
@@ -126,7 +122,6 @@ def main(rank, args, task_lines):
         device=f"cuda:{rank%num_gpus}",
         max_end_silence_time=500,
     )
-    # model.to(device)
 
     done_tasks = []
     save_dir = args.save_dir
@@ -138,7 +133,6 @@ def main(rank, args, task_lines):
             save_name = task_split[1]
         else:
             save_name = os.path.splitext(os.path.basename(wav_file))[0]
-        # convert video to wav
         routine(wav_file, os.path.join(save_dir, save_name), model, device, args)
         done_tasks.append(task)
         if i > 0 and i % args.done_update_interval == 0:
@@ -151,7 +145,6 @@ def main(rank, args, task_lines):
     with open(os.path.join(task_dir, f"done_{rank}"), "a") as f_done:
         for line in done_tasks:
             print(line, file=f_done)
-
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -166,7 +159,6 @@ if __name__ == "__main__":
     parser.add_argument("--done-update-interval", type=int, default=100)
 
     args = parser.parse_args()
-    # os.makedirs(args.tgt_dir, exist_ok=True)
 
     task_dir = args.task_dir
     with open(os.path.join(task_dir, "running_task"), "r") as f_task:

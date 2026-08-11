@@ -1,7 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
 
 import argparse
 import logging
@@ -42,14 +38,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("learn_kmeans")
 
-
 class _SeedWorkers:
     def __init__(self, seed: int):
         self.seed = seed
 
     def __call__(self, worker_id: int):
         fix_random_seed(self.seed + worker_id)
-
 
 def get_km_model(
     n_clusters,
@@ -75,7 +69,6 @@ def get_km_model(
         reassignment_ratio=reassignment_ratio,
     )
 
-
 def get_cuts(cut_files, src_dir):
     if cut_files is not None:
         cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_files)
@@ -89,7 +82,6 @@ def get_cuts(cut_files, src_dir):
         sorted_filenames = sorted(cut_files)
         cuts = lhotse.combine(lhotse.load_manifest_lazy(p) for p in sorted_filenames)
     return cuts
-
 
 def extract_feature(batch, model):
     if model is None:
@@ -106,7 +98,6 @@ def extract_feature(batch, model):
         holder.append(encoder_out[i, : encoder_out_lens[i], :])
     encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()
     return encoder_out
-
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -133,7 +124,6 @@ def get_parser():
     parser.add_argument("--reassignment-ratio", default=0.0, type=float)
     parser.add_argument("--seed", type=int, default=42)
 
-    # To decide which kind of checkpoint to use
     parser.add_argument("--checkpoint-type", type=str, default="pretrain")
 
     parser.add_argument(
@@ -152,47 +142,7 @@ def get_parser():
         help="""If positive, --epoch is ignored and it
         will use the checkpoint exp_dir/checkpoint-iter.pt.
         You can specify --avg to use more checkpoints for model averaging.
-        """,
-    )
-
-    parser.add_argument(
-        "--avg",
-        type=int,
-        default=15,
-        help="Number of checkpoints to average. Automatically select "
-        "consecutive checkpoints before the checkpoint specified by "
-        "'--epoch' and '--iter'",
-    )
-
-    parser.add_argument(
-        "--use-averaged-model",
-        type=str2bool,
-        default=True,
-        help="Whether to load averaged model. Currently it only supports "
-        "using --epoch. If True, it would decode with the averaged model "
-        "over the epoch range from `epoch-avg` (excluded) to `epoch`."
-        "Actually only the models with epoch number of `epoch-avg` and "
-        "`epoch` are loaded for averaging. ",
-    )
-
-    parser.add_argument(
-        "--exp-dir",
-        type=str,
-        default="zipformer/exp",
-        help="The experiment dir",
-    )
-
-    parser.add_argument(
-        "--bpe-model",
-        type=str,
-        default="data/lang_bpe_500/bpe.model",
-        help="Path to the BPE model",
-    )
-
-    parser.add_argument(
-        "--pretrained-dir",
-        type=str,
-        help="""The pretrained model dir.
+The pretrained model dir.
         It specifies the directory where the pretrained checkpoint is saved.""",
     )
 
@@ -214,7 +164,6 @@ def get_parser():
     add_model_arguments(parser)
     return parser
 
-
 def get_model(params, device):
     if params.checkpoint_type == "ASR":
         params.use_layer_norm = False
@@ -222,8 +171,8 @@ def get_model(params, device):
     if params.checkpoint_type == "pretrain":
         model = finetune.get_model(params)
     else:
-        params.final_downsample = True  # to avoid parameter shape mismatch
-        params.do_final_downsample = False  # to not use down sample
+        params.final_downsample = True  
+        params.do_final_downsample = False  
         model = finetune.get_model(params)
         model.to(device)
         checkpoint = get_avg_checkpoint(
@@ -254,7 +203,6 @@ def get_model(params, device):
     model.to(device)
     return model
 
-
 def learn_kmeans(
     args,
     do_training,
@@ -283,7 +231,6 @@ def learn_kmeans(
             n_init,
             reassignment_ratio,
         )
-        # km_model.fit(feat)
     else:
         km_model = joblib.load(km_path)
     cuts = get_cuts(files, src_dir)
@@ -314,10 +261,7 @@ def learn_kmeans(
     inertia = -km_model.score(part_feats) / len(part_feats)
     logging.info(f"Total inertia: {inertia:.5f}")
 
-    # inertia = -km_model.score(feat) / len(feat)
-    # logger.info("total intertia: %.5f", inertia)
     logger.info("finished successfully")
-
 
 if __name__ == "__main__":
     parser = get_parser()
@@ -327,7 +271,6 @@ if __name__ == "__main__":
     sp = spm.SentencePieceProcessor()
     sp.load(args.bpe_model)
 
-    # <blk> is defined in local/train_bpe_model.py
     args.blank_id = sp.piece_to_id("<blk>")
     args.vocab_size = sp.get_piece_size()
 

@@ -15,7 +15,6 @@ from lhotse.supervision import SupervisionSegment, SupervisionSet
 from lhotse.utils import Pathlike, add_durations
 from tqdm.auto import tqdm
 
-
 def _parse_utterance(
     part_path: Pathlike,
     line: str,
@@ -45,18 +44,11 @@ def _parse_utterance(
 
     return recording, segment
 
-
 def _prepare_subset(
     corpus_dir: Pathlike,
     lang: Optional[str] = None,
     num_jobs: int = 1,
 ) -> Tuple[RecordingSet, SupervisionSet]:
-    """
-    Returns the RecodingSet and SupervisionSet given a dataset part.
-    :param subset: str, the name of the subset.
-    :param corpus_dir: Pathlike, the path of the data dir.
-    :return: the RecodingSet and SupervisionSet for train and valid.
-    """
     corpus_dir = Path(corpus_dir)
     wav_paths = glob.iglob(f"{str(corpus_dir)}/**/*.wav", recursive=True)
 
@@ -78,12 +70,10 @@ def _prepare_subset(
         recording_set = RecordingSet.from_recordings(recordings)
         supervision_set = SupervisionSet.from_segments(supervisions)
 
-        # Fix manifests
         recording_set, supervision_set = fix_manifests(recording_set, supervision_set)
         validate_recordings_and_supervisions(recording_set, supervision_set)
 
     return recording_set, supervision_set
-
 
 def prepare_vietnam(
     corpus_dir: Pathlike,
@@ -92,12 +82,6 @@ def prepare_vietnam(
     lang: Optional[str] = None,
     num_jobs: int = 1,
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
-    """
-    Returns the manifests which consist of the Recordings and Supervisions
-    :param corpus_dir: Path to the VietASR dataset.
-    :param output_dir: Pathlike, the path where to write the manifests.
-    :return: a Dict whose key is the dataset part, and the value is Dicts with the keys 'recordings' and 'supervisions'.
-    """
     corpus_dir = Path(corpus_dir)
 
     assert corpus_dir.is_dir(), f"No such directory: {corpus_dir}"
@@ -131,7 +115,6 @@ def prepare_vietnam(
     manifests[part] = {"recordings": recording_set, "supervisions": supervision_set}
 
     return manifests
-
 
 if __name__ == "__main__":
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"

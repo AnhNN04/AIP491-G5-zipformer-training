@@ -26,7 +26,7 @@ if __name__ == "__main__":
     target_duration = args.target_duration * 3600
     src_dir = f"data/ssl_{subset_name}/{subset_name}_split"
     target_path = args.target_path
-    num_digits = 8  # num_digits is fixed by lhotse split-lazy
+    num_digits = 8  
 
     target_lines = []
     total_duration = 0

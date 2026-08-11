@@ -8,7 +8,6 @@ from icefall.utils import add_sos
 from scaling import ScaledLinear
 from utils import GradMultiply
 
-
 class AsrModel(nn.Module):
     def __init__(
         self,
@@ -22,33 +21,6 @@ class AsrModel(nn.Module):
         use_ctc: bool = False,
         encoder_feature_layer: int = -1,
     ):
-        """A joint CTC & Transducer ASR model.
-
-        - Connectionist temporal classification: labelling unsegmented sequence data with recurrent neural networks (http://imagine.enpc.fr/~obozinsg/teaching/mva_gm/papers/ctc.pdf)
-        - Sequence Transduction with Recurrent Neural Networks (https://arxiv.org/pdf/1211.3711.pdf)
-        - Pruned RNN-T for fast, memory-efficient ASR training (https://arxiv.org/pdf/2206.13236.pdf)
-
-        Args:
-          encoder:
-            It is the transcription network in the paper. Its accepts
-            inputs: `x` of (N, T, encoder_dim).
-            It returns two tensors: `logits` of shape (N, T, encoder_dim) and
-            `logit_lens` of shape (N,).
-          decoder:
-            It is the prediction network in the paper. Its input shape
-            is (N, U) and its output shape is (N, U, decoder_dim).
-            It should contain one attribute: `blank_id`.
-            It is used when use_transducer is True.
-          joiner:
-            It has two inputs with shapes: (N, T, encoder_dim) and (N, U, decoder_dim).
-            Its output shape is (N, T, U, vocab_size). Note that its output contains
-            unnormalized probs, i.e., not processed by log-softmax.
-            It is used when use_transducer is True.
-          use_transducer:
-            Whether use transducer head. Default: True.
-          use_ctc:
-            Whether use CTC head. Default: False.
-        """
         super().__init__()
 
         assert (
@@ -60,7 +32,6 @@ class AsrModel(nn.Module):
 
         self.use_transducer = use_transducer
         if use_transducer:
-            # Modules for Transducer head
             assert decoder is not None
             assert hasattr(decoder, "blank_id")
             assert joiner is not None
@@ -80,7 +51,6 @@ class AsrModel(nn.Module):
 
         self.use_ctc = use_ctc
         if use_ctc:
-            # Modules for CTC head
             self.ctc_output = nn.Sequential(
                 nn.Dropout(p=0.1),
                 nn.Linear(encoder_dim, vocab_size),
@@ -93,17 +63,6 @@ class AsrModel(nn.Module):
         padding_mask: Optional[torch.Tensor] = None,
         do_final_down_sample: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute encoder outputs.
-        Args:
-          x:
-            A 2-D tensor of shape (N, T).
-
-        Returns:
-          encoder_out:
-            Encoder output, of shape (N, T, C).
-          encoder_out_lens:
-            Encoder output lengths, of shape (N,).
-        """
         if padding_mask is None:
             padding_mask = torch.zeros_like(x, dtype=torch.bool)
 
@@ -114,7 +73,6 @@ class AsrModel(nn.Module):
             output_layer=self.encoder_feature_layer,
             do_final_down_sample=do_final_down_sample,
         )
-        # encoder_out_lens = torch.sum(~padding_mask, dim=1)
         assert torch.all(encoder_out_lens > 0), encoder_out_lens
 
         return encoder_out, encoder_out_lens
@@ -126,21 +84,10 @@ class AsrModel(nn.Module):
         targets: torch.Tensor,
         target_lengths: torch.Tensor,
     ) -> torch.Tensor:
-        """Compute CTC loss.
-        Args:
-          encoder_out:
-            Encoder output, of shape (N, T, C).
-          encoder_out_lens:
-            Encoder output lengths, of shape (N,).
-          targets:
-            Target Tensor of shape (sum(target_lengths)). The targets are assumed
-            to be un-padded and concatenated within 1 dimension.
-        """
-        # Compute CTC log-prob
-        ctc_output = self.ctc_output(encoder_out)  # (N, T, C)
+        ctc_output = self.ctc_output(encoder_out)  
 
         ctc_loss = torch.nn.functional.ctc_loss(
-            log_probs=ctc_output.permute(1, 0, 2),  # (T, N, C)
+            log_probs=ctc_output.permute(1, 0, 2),  
             targets=targets,
             input_lengths=encoder_out_lens,
             target_lengths=target_lengths,
@@ -158,37 +105,13 @@ class AsrModel(nn.Module):
         am_scale: float = 0.0,
         lm_scale: float = 0.0,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute Transducer loss.
-        Args:
-          encoder_out:
-            Encoder output, of shape (N, T, C).
-          encoder_out_lens:
-            Encoder output lengths, of shape (N,).
-          y:
-            A ragged tensor with 2 axes [utt][label]. It contains labels of each
-            utterance.
-          prune_range:
-            The prune range for rnnt loss, it means how many symbols(context)
-            we are considering for each frame to compute the loss.
-          am_scale:
-            The scale to smooth the loss with am (output of encoder network)
-            part
-          lm_scale:
-            The scale to smooth the loss with lm (output of predictor network)
-            part
-        """
-        # Now for the decoder, i.e., the prediction network
         blank_id = self.decoder.blank_id
         sos_y = add_sos(y, sos_id=blank_id)
 
-        # sos_y_padded: [B, S + 1], start with SOS.
         sos_y_padded = sos_y.pad(mode="constant", padding_value=blank_id)
 
-        # decoder_out: [B, S + 1, decoder_dim]
         decoder_out = self.decoder(sos_y_padded)
 
-        # Note: y does not start with SOS
-        # y_padded : [B, S]
         y_padded = y.pad(mode="constant", padding_value=0)
 
         y_padded = y_padded.to(torch.int64)
@@ -203,11 +126,6 @@ class AsrModel(nn.Module):
         lm = self.simple_lm_proj(decoder_out)
         am = self.simple_am_proj(encoder_out)
 
-        # if self.training and random.random() < 0.25:
-        #    lm = penalize_abs_values_gt(lm, 100.0, 1.0e-04)
-        # if self.training and random.random() < 0.25:
-        #    am = penalize_abs_values_gt(am, 30.0, 1.0e-04)
-
         with torch.amp.autocast("cuda", enabled=False):
             simple_loss, (px_grad, py_grad) = k2.rnnt_loss_smoothed(
                 lm=lm.float(),
@@ -221,7 +139,6 @@ class AsrModel(nn.Module):
                 return_grad=True,
             )
 
-        # ranges : [B, T, prune_range]
         ranges = k2.get_rnnt_prune_ranges(
             px_grad=px_grad,
             py_grad=py_grad,
@@ -229,18 +146,12 @@ class AsrModel(nn.Module):
             s_range=prune_range,
         )
 
-        # am_pruned : [B, T, prune_range, encoder_dim]
-        # lm_pruned : [B, T, prune_range, decoder_dim]
         am_pruned, lm_pruned = k2.do_rnnt_pruning(
             am=self.joiner.encoder_proj(encoder_out),
             lm=self.joiner.decoder_proj(decoder_out),
             ranges=ranges,
         )
 
-        # logits : [B, T, prune_range, vocab_size]
-
-        # project_input=False since we applied the decoder's input projections
-        # prior to do_rnnt_pruning (this is an optimization for speed).
         logits = self.joiner(am_pruned, lm_pruned, project_input=False)
 
         with torch.amp.autocast("cuda", enabled=False):
@@ -266,38 +177,11 @@ class AsrModel(nn.Module):
         freeze_encoder: bool = False,
         encoder_grad_scale: float = 1,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Args:
-          x:
-            A 2-D tensor of shape (N, T).
-          y:
-            A ragged tensor with 2 axes [utt][label]. It contains labels of each
-            utterance.
-          prune_range:
-            The prune range for rnnt loss, it means how many symbols(context)
-            we are considering for each frame to compute the loss.
-          am_scale:
-            The scale to smooth the loss with am (output of encoder network)
-            part
-          lm_scale:
-            The scale to smooth the loss with lm (output of predictor network)
-            part
-        Returns:
-          Return the transducer losses and CTC loss,
-          in form of (simple_loss, pruned_loss, ctc_loss)
-
-        Note:
-           Regarding am_scale & lm_scale, it will make the loss-function one of
-           the form:
-              lm_scale * lm_probs + am_scale * am_probs +
-              (1-lm_scale-am_scale) * combined_probs
-        """
         assert x.ndim == 3, x.shape
         assert y.num_axes == 2, y.num_axes
 
         assert x.size(0) == y.dim0, (x.shape, y.dim0)
 
-        # Compute encoder outputs
         if freeze_encoder:
             with torch.no_grad():
                 encoder_out, encoder_out_lens = self.forward_encoder(x, padding_mask)
@@ -310,7 +194,6 @@ class AsrModel(nn.Module):
         y_lens = row_splits[1:] - row_splits[:-1]
 
         if self.use_transducer:
-            # Compute transducer loss
             simple_loss, pruned_loss = self.forward_transducer(
                 encoder_out=encoder_out,
                 encoder_out_lens=encoder_out_lens,
@@ -325,7 +208,6 @@ class AsrModel(nn.Module):
             pruned_loss = torch.empty(0)
 
         if self.use_ctc:
-            # Compute CTC loss
             targets = y.values
             ctc_loss = self.forward_ctc(
                 encoder_out=encoder_out,

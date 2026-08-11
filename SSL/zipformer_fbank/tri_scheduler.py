@@ -2,44 +2,7 @@ import math
 
 from optim import LRScheduler
 
-
 class TriStageLRSchedule(LRScheduler):
-    """Tristage learning rate schedulr
-
-    Implement the learning rate scheduler in https://arxiv.org/pdf/1904.08779.pdf
-
-    Similar to inverse_squre_root scheduler, but tri_stage learning rate employs
-    three stages LR scheduling:
-
-        - warmup stage, starting from `lr` * `init_lr_scale`, linearly
-          increased to `lr` in `warmup_steps` iterations
-
-        - hold stage, after `warmup_steps`, keep the LR as `lr` for `hold_steps`
-          iterations
-
-        - decay stage, after hold stage, decay LR exponetially to
-          `lr` * `final_lr_scale` in `decay_steps`;
-          after that LR is keep as `final_lr_scale` * `lr`
-
-    During warmup::
-
-      init_lr = cfg.init_lr_scale * cfg.lr
-      lrs = torch.linspace(init_lr, cfg.lr, cfg.warmup_steps)
-      lr = lrs[update_num]
-
-    During hold::
-
-      lr = cfg.lr
-
-    During decay::
-
-      decay_factor = - math.log(cfg.final_lr_scale) / cfg.decay_steps
-      lr = cfg.lr * exp(- (update_num - warmup_steps - decay_steps) * decay_factor)
-
-    After that::
-
-      lr = cfg.lr * cfg.final_lr_scale
-    """
 
     def __init__(
         self,
@@ -54,8 +17,6 @@ class TriStageLRSchedule(LRScheduler):
         phase_ratio=None,
     ):
         super(TriStageLRSchedule, self).__init__(optimizer, verbose)
-        # super().__init__(cfg, optimizer)
-        # calculate LR at each point
         peak_lr = self.base_lrs[0]
         self.peak_lr = peak_lr
         self.init_lr = init_lr_scale * peak_lr
@@ -83,37 +44,25 @@ class TriStageLRSchedule(LRScheduler):
         )
         self.decay_factor = -math.log(final_lr_scale) / self.decay_steps
 
-        # initial learning rate
-        # self.lr = self.init_lr
-        # self.optimizer.set_lr(self.lr)
-
     def _decide_stage(self, update_step):
-        """
-        return stage, and the corresponding steps within the current stage
-        """
         if update_step < self.warmup_steps:
-            # warmup state
             return 0, update_step
 
         offset = self.warmup_steps
 
         if update_step < offset + self.hold_steps:
-            # hold stage
             return 1, update_step - offset
 
         offset += self.hold_steps
 
         if update_step <= offset + self.decay_steps:
-            # decay stage
             return 2, update_step - offset
 
         offset += self.decay_steps
 
-        # still here ? constant lr stage
         return 3, update_step - offset
 
     def get_lr(self):
-        """Update the learning rate after each update."""
         stage, steps_in_stage = self._decide_stage(self.batch)
         lr = []
         peak_lr = self.base_lrs[0]
@@ -128,7 +77,4 @@ class TriStageLRSchedule(LRScheduler):
         else:
             raise ValueError("Undefined stage")
 
-        # self.optimizer.set_lr(self.lr)
-
         return lr
-        # return self.lr

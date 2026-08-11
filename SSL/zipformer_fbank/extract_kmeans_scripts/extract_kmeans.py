@@ -1,4 +1,3 @@
-# /usr/bin/bash
 import argparse
 import json
 import logging
@@ -32,7 +31,6 @@ from utils import get_avg_checkpoint
 
 logger = logging.getLogger("dump_km_label")
 
-
 def get_model(params, device):
     if params.checkpoint_type == "ASR":
         params.use_layer_norm = False
@@ -40,8 +38,8 @@ def get_model(params, device):
     if params.checkpoint_type == "pretrain":
         model = finetune.get_model(params)
     else:
-        params.final_downsample = True  # to avoid parameter shape mismatch
-        params.do_final_downsample = False  # to not use down sample
+        params.final_downsample = True  
+        params.do_final_downsample = False  
         model = finetune.get_model(params)
         model.to(device)
         checkpoint = get_avg_checkpoint(
@@ -72,12 +70,6 @@ def get_model(params, device):
     model.to(device)
     return model
 
-
-# feature->kmeans from ASR model
-# load ASR model
-# load feature
-
-
 def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -89,7 +81,6 @@ def get_parser():
     parser.add_argument("--end", type=int)
     parser.add_argument("--src-dir", type=str, nargs="*", help="for build list")
 
-    # To decide which kind of checkpoint to use
     parser.add_argument("--checkpoint-type", type=str, default="pretrain")
 
     parser.add_argument(
@@ -108,40 +99,7 @@ def get_parser():
         help="""If positive, --epoch is ignored and it
         will use the checkpoint exp_dir/checkpoint-iter.pt.
         You can specify --avg to use more checkpoints for model averaging.
-        """,
-    )
-
-    parser.add_argument(
-        "--avg",
-        type=int,
-        default=15,
-        help="Number of checkpoints to average. Automatically select "
-        "consecutive checkpoints before the checkpoint specified by "
-        "'--epoch' and '--iter'",
-    )
-
-    parser.add_argument(
-        "--use-averaged-model",
-        type=str2bool,
-        default=True,
-        help="Whether to load averaged model. Currently it only supports "
-        "using --epoch. If True, it would decode with the averaged model "
-        "over the epoch range from `epoch-avg` (excluded) to `epoch`."
-        "Actually only the models with epoch number of `epoch-avg` and "
-        "`epoch` are loaded for averaging. ",
-    )
-
-    parser.add_argument(
-        "--bpe-model",
-        type=str,
-        default="data/lang_bpe_500/bpe.model",
-        help="Path to the BPE model",
-    )
-
-    parser.add_argument(
-        "--pretrained-dir",
-        type=str,
-        help="""The pretrained model dir.
+The pretrained model dir.
         It specifies the directory where the pretrained checkpoint is saved.""",
     )
 
@@ -164,7 +122,6 @@ def get_parser():
 
     return parser
 
-
 class ApplyKmeans(object):
     def __init__(self, km_path, device):
         self.km_model = joblib.load(km_path)
@@ -176,7 +133,6 @@ class ApplyKmeans(object):
 
     @torch.no_grad()
     def __call__(self, x):
-        # x: b, d
         if isinstance(x, torch.Tensor):
             dist = (
                 x.pow(2).sum(1, keepdim=True) - 2 * torch.matmul(x, self.C) + self.Cnorm
@@ -189,7 +145,6 @@ class ApplyKmeans(object):
                 + self.Cnorm_np
             )
             return np.argmin(dist, axis=1)
-
 
 def extract_feature(batch, model):
     if model is None:
@@ -207,25 +162,20 @@ def extract_feature(batch, model):
     encoder_out = torch.cat(holder, dim=0)
     return encoder_out, encoder_out_lens
 
-
 def sub_routine(batch, model, km_model, km_dict, device):
     feat, len_lis = extract_feature(batch, model)
     kmeans = km_model(feat).to(torch.device("cpu"))
-    # print(kmeans.shape)
     offset = 0
     cut_ids = [cut.id for cut in batch["cuts"]]
-    # len_lis = batch["feature_lens"]
     for cut_id, feat_len in zip(cut_ids, len_lis):
         label = [str(int(item)) for item in kmeans[offset : offset + feat_len]]
         km_dict[cut_id] = " ".join(label)
         offset += feat_len
 
-
 def main(args):
     sp = spm.SentencePieceProcessor()
     sp.load(args.bpe_model)
 
-    # <blk> is defined in local/train_bpe_model.py
     args.blank_id = sp.piece_to_id("<blk>")
     args.vocab_size = sp.get_piece_size()
 
@@ -237,7 +187,6 @@ def main(args):
 
     feature_model = get_model(args, device)
 
-    # apply_kmeans = ApplyKmeans(km_path)
     task_file = args.task_list
     with open(task_file, "r") as f:
         task_lis = f.readlines()
@@ -247,8 +196,6 @@ def main(args):
         task_lis = task_lis[args.start : args.end]
 
     for src, tgt in tqdm.tqdm(task_lis):
-        # if os.path.isfile(tgt):
-        #     continue
         cuts = CutSet.from_file(src)
         km_dict = {}
         finetune_datamoddule = FinetuneAsrDataModule(args)
@@ -269,7 +216,6 @@ def main(args):
 
         cuts.to_file(tgt)
         logger.info("finished successfully")
-
 
 if __name__ == "__main__":
     parser = get_parser()

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from scaling import ScaledLinear
 
-
 class Joiner(nn.Module):
     def __init__(
         self,
@@ -23,19 +22,6 @@ class Joiner(nn.Module):
         decoder_out: torch.Tensor,
         project_input: bool = True,
     ) -> torch.Tensor:
-        """
-        Args:
-          encoder_out:
-            Output from the encoder. Its shape is (N, T, s_range, C).
-          decoder_out:
-            Output from the decoder. Its shape is (N, T, s_range, C).
-          project_input:
-            If true, apply input projections encoder_proj and decoder_proj.
-            If this is false, it is the user's responsibility to do this
-            manually.
-        Returns:
-          Return a tensor of shape (N, T, s_range, C).
-        """
         assert encoder_out.ndim == decoder_out.ndim, (
             encoder_out.shape,
             decoder_out.shape,

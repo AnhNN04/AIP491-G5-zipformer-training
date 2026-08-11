@@ -103,7 +103,6 @@ def prepare_manifest(
 
     return manifests
 
-
 def parse_utterance(
     audio_path: Path,
     transcript_path: Path,
@@ -130,7 +129,6 @@ def parse_utterance(
     )
     return recording, segment
 
-
 def run(
     corpus_dir: Pathlike,
     output_dir: Pathlike,
@@ -145,7 +143,6 @@ def run(
         num_jobs=num_jobs,
         normalize_text=normalize_text,
     )
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

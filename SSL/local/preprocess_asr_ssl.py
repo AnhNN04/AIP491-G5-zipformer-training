@@ -9,7 +9,6 @@ from icefall.utils import str2bool
 from lhotse import CutSet, SupervisionSegment
 from lhotse.recipes.utils import read_manifests_if_cached
 
-
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -36,7 +35,6 @@ def get_args():
         required=True,
     )
     return parser.parse_args()
-
 
 def preprocess_asr_ssl(args):
     src_dir = Path(args.src_dir)
@@ -75,14 +73,12 @@ def preprocess_asr_ssl(args):
         logging.info(f"Saving to {raw_cuts_path}")
         cut_set.to_file(raw_cuts_path)
 
-
 def main():
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=formatter, level=logging.INFO)
 
     args = get_args()
     preprocess_asr_ssl(args)
-
 
 if __name__ == "__main__":
     main()

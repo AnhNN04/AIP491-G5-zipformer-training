@@ -1,8 +1,3 @@
-"""
-This file computes fbank features of the dataset.
-    data-path-input: data/manifests.
-    data-path-output: data/fbank.
-"""
 
 import argparse
 import logging
@@ -40,7 +35,6 @@ def get_args():
     )
 
     return parser.parse_args()
-
 
 def compute_fbank(
     bpe_model: Optional[str] = None,
@@ -106,7 +100,6 @@ def compute_fbank(
                 storage_type=LilcomChunkyWriter,
             )
             cut_set.to_file(output_dir / cuts_filename)
-
 
 if __name__ == "__main__":
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"

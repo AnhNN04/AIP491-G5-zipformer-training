@@ -1,20 +1,3 @@
-"""
-Usage:
-
-export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"
-
-# For hubert model pretraining:
-./zipformer/pretrain.py \
-  --world-size 8 \
-  --num-epochs 400 \
-  --start-epoch 1 \
-  --use-fp16 1 \
-  --exp-dir hubert/exp \
-  --full-libri 1 \
-  --max-duration 87.5 \
-  --accum-grad 4
-"""
-
 
 import argparse
 import copy
@@ -61,10 +44,7 @@ from utils import get_avg_checkpoint
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
 
-
 def get_adjusted_batch_count(params: AttributeDict) -> float:
-    # returns the number of batches we would have used so far if we had used the reference
-    # duration.  This is for purposes of set_batch_count().
     return (
         params.batch_idx_train
         * params.accum_grad
@@ -72,17 +52,14 @@ def get_adjusted_batch_count(params: AttributeDict) -> float:
         / params.ref_duration
     )
 
-
 def set_batch_count(model: Union[nn.Module, DDP], batch_count: float) -> None:
     if isinstance(model, DDP):
-        # get underlying nn.Module
         model = model.module
     for name, module in model.named_modules():
         if hasattr(module, "batch_count"):
             module.batch_count = batch_count
         if hasattr(module, "name"):
             module.name = name
-
 
 def add_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
@@ -164,7 +141,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "a single int or comma-separated list.",
     )
 
-    # hubert parameters
     parser.add_argument(
         "--label-rate", type=float, default=50, help="label rate for kmeans label"
     )
@@ -204,8 +180,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="Whether to add a layer norm after encoder embed, inherit from hubert",
     )
 
-    # for streaming
-
     parser.add_argument(
         "--causal",
         type=str2bool,
@@ -230,7 +204,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "chunk left-context frames will be chosen randomly from this list; else not relevant.",
     )
 
-    # masking
     parser.add_argument(
         "--mask-before-cnn",
         type=str2bool,
@@ -276,7 +249,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="min space between spans (if no overlap is enabled)",
     )
 
-    # channel masking
     parser.add_argument(
         "--mask-channel-length",
         type=int,
@@ -320,7 +292,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="min space between spans (if no overlap is enabled)",
     )
 
-    # loss computation
     parser.add_argument(
         "--skip-masked",
         type=bool,
@@ -364,7 +335,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="weight for masked part in ssl loss",
     )
 
-    # FP16 optimization
     parser.add_argument(
         "--required-seq-len-multiple",
         type=int,
@@ -418,7 +388,6 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="use separate projection for each target",
     )
 
-
 def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -459,44 +428,12 @@ def get_parser():
         help="""Resume training from this epoch. It should be positive.
         If larger than 1, it will load checkpoint from
         exp-dir/epoch-{start_epoch-1}.pt
-        """,
-    )
-
-    parser.add_argument(
-        "--start-batch",
-        type=int,
-        default=0,
-        help="""If positive, --start-epoch is ignored and
+If positive, --start-epoch is ignored and
         it loads the checkpoint from exp-dir/checkpoint-{start_batch}.pt
-        """,
-    )
-
-    parser.add_argument(
-        "--exp-dir",
-        type=str,
-        default="zipformer/exp",
-        help="""The experiment dir.
+The experiment dir.
         It specifies the directory where all training related
         files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
-
-    parser.add_argument(
-        "--train-cut",
-        type=str,
-        default="large",
-        help="To specify the size of the train cut",
-    )
-
-    parser.add_argument(
-        "--base-lr", type=float, default=0.045, help="The base learning rate."
-    )
-
-    parser.add_argument(
-        "--lr-batches",
-        type=float,
-        default=7500,
-        help="""Number of steps that affects how rapidly the learning rate
+Number of steps that affects how rapidly the learning rate
         decreases. We suggest not to change this.""",
     )
 
@@ -505,146 +442,24 @@ def get_parser():
         type=float,
         default=10.5,
         help="""Number of epochs that affects how rapidly the learning rate decreases.
-        """,
-    )
-
-    parser.add_argument(
-        "--warmup-batches",
-        type=float,
-        default=5000,
-        help="Eden warmup steps",
-    )
-
-    parser.add_argument(
-        "--warmup-start",
-        type=float,
-        default=0,
-        help="Eden warmup start learning rate",
-    )
-
-    parser.add_argument(
-        "--ref-duration",
-        type=float,
-        default=600,
-        help="Reference batch duration for purposes of adjusting batch counts for setting various "
-        "schedules inside the model",
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="The seed for random generators intended for reproducibility",
-    )
-
-    parser.add_argument(
-        "--print-diagnostics",
-        type=str2bool,
-        default=False,
-        help="Accumulate stats on activations, print them and exit.",
-    )
-
-    parser.add_argument(
-        "--sanity-check",
-        type=str2bool,
-        default=False,
-        help="Check if any of the batches in epoch 1 would cause OOM.",
-    )
-
-    parser.add_argument(
-        "--inf-check",
-        type=str2bool,
-        default=False,
-        help="Add hooks to check for infinite module outputs and gradients.",
-    )
-
-    parser.add_argument(
-        "--save-every-n",
-        type=int,
-        default=100000,
-        help="""Save checkpoint after processing this number of batches"
+Save checkpoint after processing this number of batches"
         periodically. We save checkpoint to exp-dir/ whenever
         params.batch_idx_train % save_every_n == 0. The checkpoint filename
         has the form: f'exp-dir/checkpoint-{params.batch_idx_train}.pt'
         Note: It also saves checkpoint to `exp-dir/epoch-xxx.pt` at the
         end of each epoch where `xxx` is the epoch number counting from 1.
-        """,
-    )
-
-    parser.add_argument(
-        "--keep-last-k",
-        type=int,
-        default=30,
-        help="""Only keep this number of checkpoints on disk.
+Only keep this number of checkpoints on disk.
         For instance, if it is 3, there are only 3 checkpoints
         in the exp-dir with filenames `checkpoint-xxx.pt`.
         It does not affect checkpoints with name `epoch-xxx.pt`.
-        """,
-    )
-
-    parser.add_argument(
-        "--average-period",
-        type=int,
-        default=200,
-        help="""Update the averaged model, namely `model_avg`, after processing
+Update the averaged model, namely `model_avg`, after processing
         this number of batches. `model_avg` is a separate version of model,
         in which each floating-point parameter is the average of all the
         parameters from the start of training. Each time we take the average,
         we do: `model_avg = model * (average_period / batch_idx_train) +
             model_avg * ((batch_idx_train - average_period) / batch_idx_train)`.
-        """,
-    )
-
-    parser.add_argument(
-        "--accum-grad",
-        type=int,
-        default=4,
-        help="""update gradient when batch_idx_train % accum_grad == 0.
-        """,
-    )
-
-    parser.add_argument(
-        "--use-fp16",
-        type=str2bool,
-        default=False,
-        help="Whether to use half precision training.",
-    )
-
-    parser.add_argument(
-        "--max-keep-size",
-        type=int,
-        default=sys.maxsize,
-        help="exclude sample longer than this.",
-    )
-
-    parser.add_argument(
-        "--min-keep-size",
-        type=int,
-        default=32000,
-        help="exclude sample longer less than this.",
-    )
-
-    parser.add_argument(
-        "--max-sample-size",
-        type=int,
-        default=250000,
-        help="max sample size to crop to for batching.",
-    )
-
-    parser.add_argument(
-        "--final-downsample",
-        type=str2bool,
-        default=False,
-        help="Whether to use half precision training.",
-    )
-
-    add_model_arguments(parser)
-
-    return parser
-
-
-def get_params() -> AttributeDict:
-    """Return a dict containing training parameters.
+update gradient when batch_idx_train % accum_grad == 0.
+Return a dict containing training parameters.
 
     All training related parameters that are not passed from the commandline
     are saved in the variable `params`.
@@ -678,44 +493,7 @@ def get_params() -> AttributeDict:
         - reset_interval: Reset statistics if batch_idx % reset_interval is 0
 
         - valid_interval:  Run validation if batch_idx % valid_interval is 0
-    """
-    params = AttributeDict(
-        {
-            "best_train_loss": float("inf"),
-            "best_valid_loss": float("inf"),
-            "best_train_epoch": -1,
-            "best_valid_epoch": -1,
-            "batch_idx_train": 0,
-            "sub_batch_idx_train": 0,
-            "log_interval": 50,
-            "reset_interval": 200,
-            "valid_interval": 3000,  # For the 100h subset, use 800
-            # zipformer parameter
-            "feature_dim": 80,
-            "env_info": get_env_info(),
-        }
-    )
-
-    return params
-
-
-def _to_int_tuple(s: str):
-    return tuple(map(int, s.split(",")))
-
-
-def get_model(params: AttributeDict) -> nn.Module:
-    model = HubertModel(params)
-    return model
-
-
-def load_checkpoint_if_available(
-    params: AttributeDict,
-    model: nn.Module,
-    model_avg: nn.Module = None,
-    optimizer: Optional[torch.optim.Optimizer] = None,
-    scheduler: Optional[LRSchedulerType] = None,
-) -> Optional[Dict[str, Any]]:
-    """Load checkpoint from file.
+Load checkpoint from file.
 
     If params.start_batch is positive, it will load the checkpoint from
     `params.exp_dir/checkpoint-{params.start_batch}.pt`. Otherwise, if
@@ -739,52 +517,7 @@ def load_checkpoint_if_available(
         The scheduler that we are using.
     Returns:
       Return a dict containing previously saved training info.
-    """
-    if params.start_batch > 0:
-        filename = params.exp_dir / f"checkpoint-{params.start_batch}.pt"
-    elif params.start_epoch > 1:
-        filename = params.exp_dir / f"epoch-{params.start_epoch-1}.pt"
-    else:
-        return None
-
-    assert filename.is_file(), f"{filename} does not exist!"
-
-    saved_params = load_checkpoint(
-        filename,
-        model=model,
-        model_avg=model_avg,
-        optimizer=optimizer,
-        scheduler=scheduler,
-    )
-
-    keys = [
-        "best_train_epoch",
-        "best_valid_epoch",
-        "batch_idx_train",
-        "best_train_loss",
-        "best_valid_loss",
-    ]
-    for k in keys:
-        params[k] = saved_params[k]
-
-    if params.start_batch > 0:
-        if "cur_epoch" in saved_params:
-            params["start_epoch"] = saved_params["cur_epoch"]
-
-    return saved_params
-
-
-def save_checkpoint(
-    params: AttributeDict,
-    model: Union[nn.Module, DDP],
-    model_avg: Optional[nn.Module] = None,
-    optimizer: Optional[torch.optim.Optimizer] = None,
-    scheduler: Optional[LRSchedulerType] = None,
-    sampler: Optional[CutSampler] = None,
-    scaler: Optional[GradScaler] = None,
-    rank: int = 0,
-) -> None:
-    """Save model, optimizer, scheduler and training stats to file.
+Save model, optimizer, scheduler and training stats to file.
 
     Args:
       params:
@@ -799,38 +532,6 @@ def save_checkpoint(
        The sampler for the training dataset.
       scaler:
         The scaler used for mix precision training.
-    """
-    if rank != 0:
-        return
-    filename = params.exp_dir / f"epoch-{params.cur_epoch}.pt"
-    save_checkpoint_impl(
-        filename=filename,
-        model=model,
-        model_avg=model_avg,
-        params=params,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        sampler=sampler,
-        scaler=scaler,
-        rank=rank,
-    )
-
-    if params.best_train_epoch == params.cur_epoch:
-        best_train_filename = params.exp_dir / "best-train-loss.pt"
-        copyfile(src=filename, dst=best_train_filename)
-
-    if params.best_valid_epoch == params.cur_epoch:
-        best_valid_filename = params.exp_dir / "best-valid-loss.pt"
-        copyfile(src=filename, dst=best_valid_filename)
-
-
-def compute_loss(
-    params: AttributeDict,
-    model: Union[nn.Module, DDP],
-    batch: dict,
-    is_training: bool,
-) -> Tuple[Tensor, MetricsTracker]:
-    """
     Compute loss given the model and its inputs.
 
     Args:
@@ -845,65 +546,7 @@ def compute_loss(
         True for training. False for validation. When it is True, this
         function enables autograd during computation; when it is False, it
         disables autograd.
-    """
-    device = model.device if isinstance(model, DDP) else next(model.parameters()).device
-    features = batch["features"].to(device)
-    # at entry, features is (N, T, C)
-    assert features.ndim == 3
-
-    padding_mask = batch["padding_mask"].to(device)
-    kmeans = batch["kmeans"].to(device)
-
-    def pad_for_cnn(x, ref):
-        target_length = ref.shape[1] * 2 + 7
-        if len(x.shape) == 2:
-            B, T = x.shape
-            delta = target_length - T
-            left_pad = delta // 2
-            right_pad = delta - left_pad
-            y = torch.zeros((B, T + delta), device=x.device, dtype=x.dtype)
-            y[:, left_pad:-right_pad] = x
-            y[:, :left_pad] = x[:, 0].unsqueeze(1)
-            y[:, -right_pad:] = x[:, -1].unsqueeze(1)
-            return y
-        elif len(x.shape) == 3:
-            B, T, C = x.shape
-            delta = target_length - T
-            left_pad = delta // 2
-            right_pad = delta - left_pad
-            y = torch.zeros((B, T + delta, C), device=x.device, dtype=x.dtype)
-            y[:, left_pad:-right_pad, :] = x
-            y[:, :left_pad, :] = x[:, 0, :].unsqueeze(1)
-            y[:, -right_pad:, :] = x[:, -1, :].unsqueeze(1)
-            return y
-
-    if params.pad_to_same_length:
-        features = pad_for_cnn(features, kmeans)
-        padding_mask = pad_for_cnn(padding_mask, kmeans)
-
-    with torch.set_grad_enabled(is_training):
-        loss, num_masked_tokens, logging_output = model(
-            source=features, target_list=[kmeans], padding_mask=padding_mask
-        )
-
-    assert loss.requires_grad == is_training
-
-    info = MetricsTracker()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        info["frames"] = num_masked_tokens
-    for item in logging_output:
-        info[item] = logging_output[item]
-    return loss, info
-
-
-def compute_validation_loss(
-    params: AttributeDict,
-    model: Union[nn.Module, DDP],
-    valid_dl: torch.utils.data.DataLoader,
-    world_size: int = 1,
-) -> MetricsTracker:
-    """Run the validation process."""
+Run the validation process."""
     model.eval()
 
     tot_loss = MetricsTracker()
@@ -928,7 +571,6 @@ def compute_validation_loss(
 
     return tot_loss
 
-
 def train_one_epoch(
     params: AttributeDict,
     model: Union[nn.Module, DDP],
@@ -942,37 +584,6 @@ def train_one_epoch(
     world_size: int = 1,
     rank: int = 0,
 ) -> None:
-    """Train the model for one epoch.
-
-    The training loss from the mean of all frames is saved in
-    `params.train_loss`. It runs the validation process every
-    `params.valid_interval` batches.
-
-    Args:
-      params:
-        It is returned by :func:`get_params`.
-      model:
-        The model for training.
-      optimizer:
-        The optimizer we are using.
-      scheduler:
-        The learning rate scheduler, we call step() every step.
-      train_dl:
-        Dataloader for the training dataset.
-      valid_dl:
-        Dataloader for the validation dataset.
-      scaler:
-        The scaler used for mix precision training.
-      model_avg:
-        The stored model averaged from the start of training.
-      tb_writer:
-        Writer to write log messages to tensorboard.
-      world_size:
-        Number of nodes in DDP training. If it is 1, DDP is disabled.
-      rank:
-        The rank of the node in DDP training. If no DDP is used, it should
-        be set to 0.
-    """
     model.train()
 
     tot_loss = MetricsTracker()
@@ -1009,11 +620,8 @@ def train_one_epoch(
                     batch=batch,
                     is_training=True,
                 )
-            # summary stats
             tot_loss = (tot_loss * (1 - 1 / params.reset_interval)) + loss_info
 
-            # NOTE: We use reduction==sum and loss is computed over utterances
-            # in the batch and there is no normalization to it so far.
             scaler.scale(loss / params.accum_grad).backward()
 
             if sub_batch_idx % params.accum_grad == params.accum_grad - 1:
@@ -1026,7 +634,7 @@ def train_one_epoch(
             else:
                 continue
 
-        except:  # noqa
+        except:  
             save_bad_model()
             display_and_save_batch(batch, params=params)
             raise
@@ -1068,9 +676,6 @@ def train_one_epoch(
             )
 
         if batch_idx % 100 == 0 and params.use_fp16:
-            # If the grad scale was less than 1, try increasing it.    The _growth_interval
-            # of the grad scaler is configurable, but we can't configure it to have different
-            # behavior depending on the current grad scale.
             cur_grad_scale = scaler._scale.item()
 
             if cur_grad_scale < 8.0 or (cur_grad_scale < 32.0 and batch_idx % 400 == 0):
@@ -1138,19 +743,7 @@ def train_one_epoch(
         params.best_train_epoch = params.cur_epoch
         params.best_train_loss = params.train_loss
 
-
 def run(rank, world_size, args):
-    """
-    Args:
-      rank:
-        It is a value between 0 and `world_size-1`, which is
-        passed automatically by `mp.spawn()` in :func:`main`.
-        The node with rank 0 is responsible for saving checkpoint.
-      world_size:
-        Number of GPUs for DDP training.
-      args:
-        The return value of get_parser().parse_args()
-    """
     params = get_params()
     params.update(vars(args))
 
@@ -1181,7 +774,6 @@ def run(rank, world_size, args):
     assert params.save_every_n >= params.average_period
     model_avg: Optional[nn.Module] = None
     if rank == 0:
-        # model_avg is only used with rank 0
         model_avg = copy.deepcopy(model).to(torch.float64)
 
     assert params.start_epoch > 0, params.start_epoch
@@ -1196,7 +788,7 @@ def run(rank, world_size, args):
 
     optimizer = ScaledAdam(
         get_parameter_groups_with_lrs(model, lr=params.base_lr, include_names=True),
-        lr=params.base_lr,  # should have no effect
+        lr=params.base_lr,  
         clipping_scale=2.0,
     )
 
@@ -1223,7 +815,7 @@ def run(rank, world_size, args):
     if params.print_diagnostics:
         opts = diagnostics.TensorDiagnosticOptions(
             512
-        )  # allow 4 megabytes per sub-module
+        )  
         diagnostic = diagnostics.attach_diagnostics(model, opts)
 
     if params.inf_check:
@@ -1236,20 +828,9 @@ def run(rank, world_size, args):
     )
 
     def remove_short_and_long_utt_and_special_channel(c: Cut):
-        # Keep only utterances with duration between 1 second and 20 seconds
-        #
-        # Caution: There is a reason to select 20.0 here. Please see
-        # ../local/display_manifest_statistics.py
-        #
-        # You should use ../local/display_manifest_statistics.py to get
-        # an utterance duration distribution for your dataset to select
-        # the threshold
         if c.duration < params.min_keep_size / params.sample_rate or c.duration > min(
             params.max_keep_size / params.sample_rate, 30
         ):
-            # logging.warning(
-            #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
-            # )
             return False
         if c.recording.sources[0].source.find("vneconomymedia5190") >= 0:
             return False
@@ -1259,8 +840,6 @@ def run(rank, world_size, args):
     train_cuts = train_cuts.filter(remove_short_and_long_utt_and_special_channel)
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
-        # We only load the sampler's state dict when it loads a checkpoint
-        # saved in the middle of an epoch
         sampler_state_dict = checkpoints["sampler"]
     else:
         sampler_state_dict = None
@@ -1285,14 +864,6 @@ def run(rank, world_size, args):
         label_rate=params.label_rate,
         num_classes=params.num_classes,
     )
-
-    # if params.sanity_check and not params.print_diagnostics:
-    #     scan_pessimistic_batches_for_oom(
-    #         model=model,
-    #         train_dl=train_dl,
-    #         optimizer=optimizer,
-    #         params=params,
-    #     )
 
     scaler = GradScaler('cuda', enabled=params.use_fp16, init_scale=1.0)
     if checkpoints and "grad_scaler" in checkpoints:
@@ -1344,22 +915,10 @@ def run(rank, world_size, args):
         torch.distributed.barrier()
         cleanup_dist()
 
-
 def display_and_save_batch(
     batch: dict,
     params: AttributeDict,
 ) -> None:
-    """Display the batch statistics and save the batch into disk.
-
-    Args:
-      batch:
-        A batch of data. See `dataset.HubertDataset()`
-        for the content in it.
-      params:
-        Parameters for training. See :func:`get_params`.
-      sp:
-        The BPE model.
-    """
     from lhotse.utils import uuid4
 
     filename = f"{params.exp_dir}/batch-{uuid4()}.pt"
@@ -1368,7 +927,6 @@ def display_and_save_batch(
 
     features = batch["features"]
     logging.info(f"features shape: {features.shape}")
-
 
 def scan_pessimistic_batches_for_oom(
     model: Union[nn.Module, DDP],
@@ -1409,7 +967,6 @@ def scan_pessimistic_batches_for_oom(
             f"Maximum memory allocated so far is {torch.cuda.max_memory_allocated()//1000000}MB"
         )
 
-
 def main():
     parser = get_parser()
     AsrDataModule.add_arguments(parser)
@@ -1422,7 +979,6 @@ def main():
         mp.spawn(run, args=(world_size, args), nprocs=world_size, join=True)
     else:
         run(rank=0, world_size=1, args=args)
-
 
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)

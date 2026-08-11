@@ -16,7 +16,6 @@ from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
 from lhotse.utils import fix_random_seed
 from torch.utils.data import DataLoader
 
-
 class _SeedWorkers:
     def __init__(self, seed: int):
         self.seed = seed
@@ -24,21 +23,7 @@ class _SeedWorkers:
     def __call__(self, worker_id: int):
         fix_random_seed(self.seed + worker_id)
 
-
 class AsrDataModule:
-    """
-    DataModule for SSL experiments.
-    It assumes there is always one train and valid dataloader,
-    but there can be multiple test dataloaders (e.g. LibriSpeech test-clean
-    and test-other).
-
-    It contains all the common data pipeline modules used in SSL
-    experiments, e.g.:
-    - dynamic batch size,
-    - bucketing samplers,
-
-    This class should be derived for specific corpora used in SSL tasks.
-    """
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -123,13 +108,6 @@ class AsrDataModule:
         num_classes: list = [504],
         sampler_state_dict: Optional[Dict[str, Any]] = None,
     ) -> DataLoader:
-        """
-        Args:
-          cuts_train:
-            CutSet for training.
-          sampler_state_dict:
-            The state dict for the training sampler.
-        """
         logging.info("About to create train dataset")
         train = HubertDataset(
             max_sample_size=max_sample_size,
@@ -162,8 +140,6 @@ class AsrDataModule:
             logging.info("Loading sampler state dict")
             train_sampler.load_state_dict(sampler_state_dict)
 
-        # 'seed' is derived from the current random state, which will have
-        # previously been set in the main process.
         seed = torch.randint(0, 100000, ()).item()
         worker_init_fn = _SeedWorkers(seed)
 
@@ -261,7 +237,6 @@ class AsrDataModule:
             if pattern.match(item)
         ]
         cut_lis = sorted(split_list)
-        # We don't have a dedicated ssl_dev set, so we use the last split for validation
         cut_lis = cut_lis[-1:]
         
         logging.info(f"Loading {len(cut_lis)} splits in lazy mode for dev")
@@ -295,10 +270,8 @@ class AsrDataModule:
             ]
             cut_lis.extend(split_list)
         cut_lis = sorted(cut_lis)
-        # Exclude the last split (cut004) as it is reserved for the dev set
         cut_lis = cut_lis[:-1]
         random.shuffle(cut_lis)
-        # sorted_filenames = [f[1] for f in idx_filenames]
         logging.info(f"Loading {len(cut_lis)} splits in lazy mode")
 
         cuts_train = lhotse.combine(lhotse.load_manifest_lazy(p) for p in cut_lis)
