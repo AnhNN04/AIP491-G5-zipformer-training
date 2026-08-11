@@ -1,4 +1,3 @@
-import argparse
 import copy
 import logging
 import warnings
@@ -72,289 +71,7 @@ def set_batch_count(model: Union[nn.Module, DDP], batch_count: float) -> None:
 
 
 
-    parser.add_argument(
-        "--causal",
-        type=str2bool,
-        default=False,
-        help="If True, use causal version of model.",
-    )
 
-    parser.add_argument(
-        "--chunk-size",
-        type=str,
-        default="16,32,64,-1",
-        help="Chunk sizes (at 50Hz frame rate) will be chosen randomly from this list during training. "
-        " Must be just -1 if --causal=False",
-    )
-
-    parser.add_argument(
-        "--left-context-frames",
-        type=str,
-        default="64,128,256,-1",
-        help="Maximum left-contexts for causal training, measured in frames which will "
-        "be converted to a number of chunks.  If splitting into chunks, "
-        "chunk left-context frames will be chosen randomly from this list; else not relevant.",
-    )
-
-    parser.add_argument(
-        "--use-transducer",
-        type=str2bool,
-        default=True,
-        help="If True, use Transducer head.",
-    )
-
-    parser.add_argument(
-        "--use-ctc",
-        type=str2bool,
-        default=False,
-        help="If True, use CTC head.",
-    )
-
-    parser.add_argument(
-        "--pretrain-path",
-        type=str,
-                          
-        help="""
-        Pretrained checkpoint for encoder
-        """,
-    )
-
-    parser.add_argument(
-        "--pretrain-type",
-        type=str,
-        default="ASR",
-        help="""
-        Pretrained checkpoint for encoder
-        """,
-    )
-
-def get_parser():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-
-    parser.add_argument(
-        "--world-size",
-        type=int,
-        default=1,
-        help="Number of GPUs for DDP training.",
-    )
-
-    parser.add_argument(
-        "--master-port",
-        type=int,
-        default=12356,
-        help="Master port to use for DDP training.",
-    )
-
-    parser.add_argument(
-        "--tensorboard",
-        type=str2bool,
-        default=True,
-        help="Should various information be logged in tensorboard.",
-    )
-
-    parser.add_argument(
-        "--num-epochs",
-        type=int,
-        default=9,
-        help="Number of epochs to train.",
-    )
-
-    parser.add_argument(
-        "--start-epoch",
-        type=int,
-        default=1,
-        help="""Resume training from this epoch. It should be positive.
-        If larger than 1, it will load checkpoint from
-        exp-dir/epoch-{start_epoch-1}.pt
-        """,
-    )
-
-    parser.add_argument(
-        "--start-batch",
-        type=int,
-        default=0,
-        help="""If positive, --start-epoch is ignored and
-        it loads the checkpoint from exp-dir/checkpoint-{start_batch}.pt
-        """,
-    )
-
-    parser.add_argument(
-        "--train-cuts",
-        type=str,
-        default="100h",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
-
-    parser.add_argument(
-        "--label-type",
-        type=str,
-        default="kmeans",
-        help="label type",
-    )
-
-    parser.add_argument(
-        "--exp-dir",
-        type=str,
-        default="zipformer/exp",
-        help="""The experiment dir.
-        It specifies the directory where all training related
-        files, e.g., checkpoints, log, etc, are saved
-        """,
-    )
-
-    parser.add_argument(
-        "--bpe-model",
-        type=str,
-        default="data/lang_bpe_2000/bpe.model",
-        help="Path to the BPE model",
-    )
-
-    parser.add_argument(
-        "--base-lr", type=float, default=0.045, help="The base learning rate."
-    )
-
-    parser.add_argument(
-        "--lr-batches",
-        type=float,
-        default=7500,
-        help="""Number of steps that affects how rapidly the learning rate
-        decreases. We suggest not to change this.""",
-    )
-
-    parser.add_argument(
-        "--lr-epochs",
-        type=float,
-        default=3.5,
-        help="""Number of epochs that affects how rapidly the learning rate decreases.
-        """,
-    )
-
-    parser.add_argument(
-        "--ref-duration",
-        type=float,
-        default=600,
-        help="Reference batch duration for purposes of adjusting batch counts for setting various "
-        "schedules inside the model",
-    )
-
-    parser.add_argument(
-        "--context-size",
-        type=int,
-        default=2,
-        help="The context size in the decoder. 1 means bigram; 2 means tri-gram",
-    )
-
-    parser.add_argument(
-        "--prune-range",
-        type=int,
-        default=5,
-        help="The prune range for rnnt loss, it means how many symbols(context)"
-        "we are using to compute the loss",
-    )
-
-    parser.add_argument(
-        "--lm-scale",
-        type=float,
-        default=0.25,
-        help="The scale to smooth the loss with lm "
-        "(output of prediction network) part.",
-    )
-
-    parser.add_argument(
-        "--am-scale",
-        type=float,
-        default=0.0,
-        help="The scale to smooth the loss with am (output of encoder network) part.",
-    )
-
-    parser.add_argument(
-        "--simple-loss-scale",
-        type=float,
-        default=0.5,
-        help="To get pruning ranges, we will calculate a simple version"
-        "loss(joiner is just addition), this simple loss also uses for"
-        "training (as a regularization item). We will scale the simple loss"
-        "with this parameter before adding to the final loss.",
-    )
-
-    parser.add_argument(
-        "--ctc-loss-scale",
-        type=float,
-        default=0.2,
-        help="Scale for CTC loss.",
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=1332,
-        help="The seed for random generators intended for reproducibility",
-    )
-
-    parser.add_argument(
-        "--print-diagnostics",
-        type=str2bool,
-        default=False,
-        help="Accumulate stats on activations, print them and exit.",
-    )
-
-    parser.add_argument(
-        "--inf-check",
-        type=str2bool,
-        default=False,
-        help="Add hooks to check for infinite module outputs and gradients.",
-    )
-
-    parser.add_argument(
-        "--save-every-n",
-        type=int,
-        default=4000,
-        help="""Save checkpoint after processing this number of batches"
-        periodically. We save checkpoint to exp-dir/ whenever
-        params.batch_idx_train % save_every_n == 0. The checkpoint filename
-        has the form: f'exp-dir/checkpoint-{params.batch_idx_train}.pt'
-        Note: It also saves checkpoint to `exp-dir/epoch-xxx.pt` at the
-        end of each epoch where `xxx` is the epoch number counting from 1.
-        """,
-    )
-
-    parser.add_argument(
-        "--keep-last-k",
-        type=int,
-        default=30,
-        help="""Only keep this number of checkpoints on disk.
-        For instance, if it is 3, there are only 3 checkpoints
-        in the exp-dir with filenames `checkpoint-xxx.pt`.
-        It does not affect checkpoints with name `epoch-xxx.pt`.
-        """,
-    )
-
-    parser.add_argument(
-        "--average-period",
-        type=int,
-        default=200,
-        help="""Update the averaged model, namely `model_avg`, after processing
-        this number of batches. `model_avg` is a separate version of model,
-        in which each floating-point parameter is the average of all the
-        parameters from the start of training. Each time we take the average,
-        we do: `model_avg = model * (average_period / batch_idx_train) +
-            model_avg * ((batch_idx_train - average_period) / batch_idx_train)`.
-        """,
-    )
-
-    parser.add_argument(
-        "--use-fp16",
-        type=str2bool,
-        default=True,
-        help="Whether to use half precision training.",
-    )
-
-    return parser
 
 def get_params() -> AttributeDict:
     """Return a dict containing training parameters.
@@ -1089,10 +806,47 @@ def scan_pessimistic_batches_for_oom(
             f"Maximum memory allocated so far is {torch.cuda.max_memory_allocated()//1000000}MB"
         )
 
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
 def main():
-    parser = get_parser()
-    args = parser.parse_args()
-    args.exp_dir = Path(args.exp_dir)
+    args = Namespace(
+        world_size=1,
+        master_port=12356,
+        tensorboard=True,
+        num_epochs=9,
+        start_epoch=1,
+        start_batch=0,
+        train_cuts="100h",
+        label_type="kmeans",
+        exp_dir=Path("zipformer/exp"),
+        bpe_model="data/lang_bpe_2000/bpe.model",
+        base_lr=0.045,
+        lr_batches=7500,
+        lr_epochs=3.5,
+        ref_duration=600,
+        context_size=2,
+        prune_range=5,
+        lm_scale=0.25,
+        am_scale=0.0,
+        simple_loss_scale=0.5,
+        ctc_loss_scale=0.2,
+        seed=1332,
+        print_diagnostics=False,
+        inf_check=False,
+        save_every_n=4000,
+        keep_last_k=30,
+        average_period=200,
+        use_fp16=True,
+        causal=False,
+        chunk_size="-1",
+        left_context_frames="-1",
+        use_transducer=True,
+        use_ctc=False,
+        pretrain_path=None,
+        pretrain_type="ASR"
+    )
 
     world_size = args.world_size
     assert world_size >= 1
