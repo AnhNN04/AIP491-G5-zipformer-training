@@ -6,7 +6,7 @@ This guide describes how to run and validate each stage of the ASR training proc
 
 ## Pipeline Overview
 
-The pipeline is split into four distinct phases:s
+The pipeline is split into four distinct phases:
 1. **ASR Labeled Data Preparation**: Prepare manifests, extract fbanks, and train BPE tokenizer.
 2. **SSL Unlabeled Data Preparation**: Preprocess raw audio, shard lists, and extract fbanks.
 3. **K-Means Pseudo-Labeling**: Train k-means clusters and extract frame-level target labels.
@@ -132,7 +132,7 @@ This phase trains the model iteratively using pseudo-labels generated from unlab
       --num-epochs 9 \
       --start-epoch 1 \
       --use-fp16 1 \
-      --train-cuts 50h \
+      --train-cuts 100h \
       --manifest-dir data/fbank \
       --bpe-model data/lang_bpe_2000/bpe.model \
       --max-duration 300 \
