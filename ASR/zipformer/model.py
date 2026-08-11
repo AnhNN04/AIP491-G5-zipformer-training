@@ -96,11 +96,7 @@ class AsrModel(nn.Module):
                 nn.LogSoftmax(dim=-1),
             )
 
-        self.use_attention_decoder = use_attention_decoder
-        if use_attention_decoder:
-            self.attention_decoder = attention_decoder
-        else:
-            assert attention_decoder is None
+        self.use_attention_decoder = False
 
     def forward_encoder(
         self, x: torch.Tensor, x_lens: torch.Tensor, final_downsample: bool = True
@@ -350,14 +346,6 @@ class AsrModel(nn.Module):
         else:
             ctc_loss = torch.empty(0)
 
-        if self.use_attention_decoder:
-            attention_decoder_loss = self.attention_decoder.calc_att_loss(
-                encoder_out=encoder_out,
-                encoder_out_lens=encoder_out_lens,
-                ys=y.to(device),
-                ys_lens=y_lens.to(device),
-            )
-        else:
-            attention_decoder_loss = torch.empty(0)
+        attention_decoder_loss = torch.empty(0)
 
         return simple_loss, pruned_loss, ctc_loss, attention_decoder_loss
