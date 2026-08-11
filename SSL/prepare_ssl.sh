@@ -42,27 +42,21 @@ log "dl_dir: $dl_dir"
 
 
 if [ $stage -le 1 ] && [ $stop_stage -ge 1 ]; then
-  log "Stage 1: Prepare VietASR manifest, language: $lang"
+  log "Stage 1: Prepare ASR manifest, language: $lang"
   mkdir -p $manifest_dir
-  if [ ! -e $manifest_dir/.vietASR.done ]; then
-    python local/vietASR_ssl.py --lang $lang -j $nj $dl_dir $subset_name $manifest_dir
-    touch $manifest_dir/.vietASR.done
+  if [ ! -e $manifest_dir/.asr.done ]; then
+    python local/asr_ssl.py --lang $lang -j $nj $dl_dir $subset_name $manifest_dir
+    touch $manifest_dir/.asr.done
   fi
 fi
 
 if [ $stage -le 2 ] && [ $stop_stage -ge 2 ]; then
-  log "State 2: Preprocess VietASR manifest"
+  log "Stage 2: Preprocess ASR manifest"
   if [ ! -f $fbank_dir/.preprocess.done ]; then
-   python3 ./local/preprocess_vietASR_ssl.py --lang $lang --dataset "$subset_name" --src-dir $manifest_dir --tgt-dir $fbank_dir
+   python3 ./local/preprocess_asr_ssl.py --lang $lang --dataset "$subset_name" --src-dir $manifest_dir --tgt-dir $fbank_dir
    touch $fbank_dir/.preprocess.done
   fi
 fi
-
-# if [ $stage -le 3 ] && [ $stop_stage -ge 3 ]; then
-#   log "Stage 3: Compute fbank for test set"
-#   mkdir -p $fbank_dir
-#   ./local/compute_fbank_vietASR.py
-# fi
 
 if [ $stage -le 4 ] && [ $stop_stage -ge 4 ]; then
   log "Stage 4: Split train set into pieces"
@@ -76,6 +70,6 @@ fi
 
 if [ $stage -le 5 ] && [ $stop_stage -ge 5 ]; then
   log "Stage 5: Compute features for train set"
-  python local/compute_fbank_vietASR_ssl_splits.py parallel --src-dir $fbank_dir --dataset $subset_name
+  python local/compute_fbank_asr_ssl_splits.py parallel --src-dir $fbank_dir --dataset $subset_name
 fi
 

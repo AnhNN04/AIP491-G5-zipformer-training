@@ -1,8 +1,6 @@
 .vscode
 download/
 data/
-tem_scripts/
-submit_*.py
 __pycache__/
 exp/
 checkpoints/
@@ -15,19 +13,13 @@ SSL/zipformer_fbank/exp_ft_iter2
 SSL/zipformer_fbank/exp_ft
 SSL/zipformer_fbank/exp_iter3
 SSL/zipformer_fbank/exp_iter2
-
-# Environment and secrets
 .env
 .env.*
 !.env.example
-
-# Frontend build and dependencies
 node_modules/
 dist/
 build/
 *.log
-
-# Python/C++ compiler and cache files
 __pycache__/
 *.pyc
 *.pyo

@@ -1,42 +1,6 @@
-"""
-Usage:
-
-export CUDA_VISIBLE_DEVICES="0,1,2,3"
-
-# For non-streaming model training:
-./zipformer/train.py \
-  --world-size 4 \
-  --num-epochs 30 \
-  --start-epoch 1 \
-  --use-fp16 1 \
-  --exp-dir zipformer/exp \
-  --full-libri 1 \
-  --max-duration 1000
-
-# For streaming model training:
-./zipformer/train.py \
-  --world-size 4 \
-  --num-epochs 30 \
-  --start-epoch 1 \
-  --use-fp16 1 \
-  --exp-dir zipformer/exp \
-  --causal 1 \
-  --full-libri 1 \
-  --max-duration 1000
-
-It supports training with:
-  - transducer loss (default), with `--use-transducer True --use-ctc False`
-  - ctc loss (not recommended), with `--use-transducer False --use-ctc True`
-  - transducer loss & ctc loss, with `--use-transducer True --use-ctc True`
-  - ctc loss & attention decoder loss, no transducer loss,
-    with `--use-transducer False --use-ctc True --use-attention-decoder True`
-"""
-
-
 import argparse
 import copy
 import logging
-import os
 import warnings
 from collections import OrderedDict
 from pathlib import Path
@@ -44,7 +8,6 @@ from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
 
 import k2
-import lhotse
 import optim
 import sentencepiece as spm
 import torch
@@ -549,44 +512,6 @@ def get_parser():
 
 def get_params() -> AttributeDict:
     """Return a dict containing training parameters.
-
-    All training related parameters that are not passed from the commandline
-    are saved in the variable `params`.
-
-    Commandline options are merged into `params` after they are parsed, so
-    you can also access them via `params`.
-
-    Explanation of options saved in `params`:
-
-        - best_train_loss: Best training loss so far. It is used to select
-                           the model that has the lowest training loss. It is
-                           updated during the training.
-
-        - best_valid_loss: Best validation loss so far. It is used to select
-                           the model that has the lowest validation loss. It is
-                           updated during the training.
-
-        - best_train_epoch: It is the epoch that has the best training loss.
-
-        - best_valid_epoch: It is the epoch that has the best validation loss.
-
-        - batch_idx_train: Used to writing statistics to tensorboard. It
-                           contains number of batches trained so far across
-                           epochs.
-
-        - log_interval:  Print training loss if batch_idx % log_interval` is 0
-
-        - reset_interval: Reset statistics if batch_idx % reset_interval is 0
-
-        - valid_interval:  Run validation if batch_idx % valid_interval is 0
-
-        - feature_dim: The model input dim. It has to match the one used
-                       in computing features.
-
-        - subsampling_factor:  The subsampling factor for the model.
-
-        - warm_step: The warmup period that dictates the decay of the
-              scale on "simple" (un-pruned) loss.
     """
     params = AttributeDict(
         {
@@ -617,14 +542,6 @@ def _to_int_tuple(s: str):
 
 
 def get_encoder_embed(params: AttributeDict) -> nn.Module:
-    # encoder_embed converts the input of shape (N, T, num_features)
-    # to the shape (N, (T - 7) // 2, encoder_dims).
-    # That is, it does two things simultaneously:
-    #   (1) subsampling: T -> (T - 7) // 2
-    #   (2) embedding: num_features -> encoder_dims
-    # In the normal configuration, we will downsample once more at the end
-    # by a factor of 2, and most of the encoder stacks will run at a lower
-    # sampling rate.
     encoder_embed = Conv2dSubsampling(
         in_channels=params.feature_dim,
         out_channels=_to_int_tuple(params.encoder_dim)[0],
@@ -764,29 +681,6 @@ def load_checkpoint_if_available(
     scheduler: Optional[LRSchedulerType] = None,
 ) -> Optional[Dict[str, Any]]:
     """Load checkpoint from file.
-
-    If params.start_batch is positive, it will load the checkpoint from
-    `params.exp_dir/checkpoint-{params.start_batch}.pt`. Otherwise, if
-    params.start_epoch is larger than 1, it will load the checkpoint from
-    `params.start_epoch - 1`.
-
-    Apart from loading state dict for `model` and `optimizer` it also updates
-    `best_train_epoch`, `best_train_loss`, `best_valid_epoch`,
-    and `best_valid_loss` in `params`.
-
-    Args:
-      params:
-        The return value of :func:`get_params`.
-      model:
-        The training model.
-      model_avg:
-        The stored model averaged from the start of training.
-      optimizer:
-        The optimizer that we are using.
-      scheduler:
-        The scheduler that we are using.
-    Returns:
-      Return a dict containing previously saved training info.
     """
     if params.start_batch > 0:
         filename = params.exp_dir / f"checkpoint-{params.start_batch}.pt"
@@ -833,20 +727,6 @@ def save_checkpoint(
     rank: int = 0,
 ) -> None:
     """Save model, optimizer, scheduler and training stats to file.
-
-    Args:
-      params:
-        It is returned by :func:`get_params`.
-      model:
-        The training model.
-      model_avg:
-        The stored model averaged from the start of training.
-      optimizer:
-        The optimizer used in the training.
-      sampler:
-       The sampler for the training dataset.
-      scaler:
-        The scaler used for mix precision training.
     """
     if rank != 0:
         return
@@ -881,21 +761,6 @@ def compute_loss(
 ) -> Tuple[Tensor, MetricsTracker]:
     """
     Compute loss given the model and its inputs.
-
-    Args:
-      params:
-        Parameters for training. See :func:`get_params`.
-      model:
-        The model for training. It is an instance of Zipformer in our case.
-      batch:
-        A batch of data. See `lhotse.dataset.K2SpeechRecognitionDataset()`
-        for the content in it.
-      is_training:
-        True for training. False for validation. When it is True, this
-        function enables autograd during computation; when it is False, it
-        disables autograd.
-      warmup: a floating point value which increases throughout training;
-        values >= 1.0 are fully warmed up and have all modules present.
     """
     device = model.device if isinstance(model, DDP) else next(model.parameters()).device
     feature = batch["inputs"]
@@ -1016,35 +881,6 @@ def train_one_epoch(
     rank: int = 0,
 ) -> None:
     """Train the model for one epoch.
-
-    The training loss from the mean of all frames is saved in
-    `params.train_loss`. It runs the validation process every
-    `params.valid_interval` batches.
-
-    Args:
-      params:
-        It is returned by :func:`get_params`.
-      model:
-        The model for training.
-      optimizer:
-        The optimizer we are using.
-      scheduler:
-        The learning rate scheduler, we call step() every step.
-      train_dl:
-        Dataloader for the training dataset.
-      valid_dl:
-        Dataloader for the validation dataset.
-      scaler:
-        The scaler used for mix precision training.
-      model_avg:
-        The stored model averaged from the start of training.
-      tb_writer:
-        Writer to write log messages to tensorboard.
-      world_size:
-        Number of nodes in DDP training. If it is 1, DDP is disabled.
-      rank:
-        The rank of the node in DDP training. If no DDP is used, it should
-        be set to 0.
     """
     model.train()
 
@@ -1204,17 +1040,6 @@ def train_one_epoch(
 
 
 def run(rank, world_size, args):
-    """
-    Args:
-      rank:
-        It is a value between 0 and `world_size-1`, which is
-        passed automatically by `mp.spawn()` in :func:`main`.
-        The node with rank 0 is responsible for saving checkpoint.
-      world_size:
-        Number of GPUs for DDP training.
-      args:
-        The return value of get_parser().parse_args()
-    """
     params = get_params()
     params.update(vars(args))
 
@@ -1310,26 +1135,8 @@ def run(rank, world_size, args):
     train_cuts = asr_train.train_cuts()
 
     def remove_short_and_long_utt(c: Cut):
-        # Keep only utterances with duration between 1 second and 20 seconds
-        #
-        # Caution: There is a reason to select 20.0 here. Please see
-        # ../local/display_manifest_statistics.py
-        #
-        # You should use ../local/display_manifest_statistics.py to get
-        # an utterance duration distribution for your dataset to select
-        # the threshold
         if c.duration < 1.0 or c.duration > 16.0:
-            # logging.warning(
-            #     f"Exclude cut with ID {c.id} from training. Duration: {c.duration}"
-            # )
             return False
-
-        # In pruned RNN-T, we require that T >= S
-        # where T is the number of feature frames after subsampling
-        # and S is the number of tokens in the utterance
-
-        # In ./zipformer.py, the conv module uses the following expression
-        # for subsampling
         T = ((c.num_frames - 7) // 2 + 1) // 2
         tokens = sp.encode(c.supervisions[0].text, out_type=str)
 
@@ -1364,16 +1171,6 @@ def run(rank, world_size, args):
     valid_dl = asr_train.valid_dataloaders(
         valid_cuts,
     )
-
-    # if params.sanity_check and not params.print_diagnostics:
-    #     scan_pessimistic_batches_for_oom(
-    #         model=model,
-    #         train_dl=train_dl,
-    #         optimizer=optimizer,
-    #         sp=sp,
-    #         params=params,
-    #     )
-
     # scaler = GradScaler(enabled=params.use_fp16, init_scale=1.0) # deprecate: changes: GradScaler('cuda', args...)
     scaler = GradScaler('cuda', enabled=params.use_fp16, init_scale=1.0) # ADD NEW
     # scaler = 
@@ -1434,15 +1231,6 @@ def display_and_save_batch(
     sp: spm.SentencePieceProcessor,
 ) -> None:
     """Display the batch statistics and save the batch into disk.
-
-    Args:
-      batch:
-        A batch of data. See `lhotse.dataset.K2SpeechRecognitionDataset()`
-        for the content in it.
-      params:
-        Parameters for training. See :func:`get_params`.
-      sp:
-        The BPE model.
     """
     from lhotse.utils import uuid4
 

@@ -102,7 +102,7 @@ bash prepare_ssl.sh --stage 1 --stop-stage 5
 #### **Stage 1: Scan & Generate Raw manifests**
 * **Command**:
   ```bash
-  python3 SSL/local/vietASR_ssl.py \
+  python3 SSL/local/asr_ssl.py \
     --lang Vietnam \
     -j 8 \
     /dataset/viVoice-unlabeled-data \
@@ -114,7 +114,7 @@ bash prepare_ssl.sh --stage 1 --stop-stage 5
 #### **Stage 2: Filter and Normalization**
 * **Command**:
   ```bash
-  python3 SSL/local/preprocess_vietASR_ssl.py \
+  python3 SSL/local/preprocess_asr_ssl.py \
     --lang Vietnam \
     --dataset "data" \
     --src-dir SSL/data/manifest_data \
@@ -134,7 +134,7 @@ bash prepare_ssl.sh --stage 1 --stop-stage 5
 #### **Stage 5: Parallel Feature Extraction**
 * **Command**:
   ```bash
-  python3 SSL/local/compute_fbank_vietASR_ssl_splits.py parallel --src-dir SSL/data/ssl_data --dataset data
+  python3 SSL/local/compute_fbank_asr_ssl_splits.py parallel --src-dir SSL/data/ssl_data --dataset data
   ```
 * **What it does**: Leverages multiple CPU threads in parallel to compute fbank features for all shards.
 * **Output verification**: Generates `capstone-ssl_cuts_data.00000000.jsonl.gz` inside `SSL/data/ssl_data/data_split/` and binary features under `SSL/data/ssl_data/`.

@@ -1,9 +1,8 @@
 import argparse
 import logging
-import re
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 from lhotse import fix_manifests, validate_recordings_and_supervisions
 from lhotse.audio import Recording, RecordingSet
@@ -11,14 +10,13 @@ from lhotse.recipes.utils import manifests_exist, read_manifests_if_cached
 from lhotse.supervision import SupervisionSegment, SupervisionSet
 from lhotse.utils import Pathlike
 from tqdm.auto import tqdm
-
 import random
 
 def prepare_manifest(
     corpus_dir: Pathlike,
-    language="vi",  # for Vietnamese
+    language="vi",
     output_dir: Optional[Pathlike] = None,
-    normalize_text: str = "lower",  # change to "lower" for ASR training
+    normalize_text: str = "lower",
     num_jobs: int = 1,
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
     corpus_dir = Path(corpus_dir)
@@ -29,12 +27,10 @@ def prepare_manifest(
     assert audio_dir.is_dir(), f"No such directory: {audio_dir}"
     assert transcripts_dir.is_dir(), f"No such directory: {transcripts_dir}"
 
-    # Get all wav files
     wav_files = sorted(list(audio_dir.glob("*.wav")))
     if not wav_files:
         raise ValueError(f"Could not find any .wav files in: {audio_dir}")
 
-    # Shuffle and split (90% train, 5% dev, 5% test)
     random.seed(42)
     random.shuffle(wav_files)
 
@@ -54,7 +50,6 @@ def prepare_manifest(
     if output_dir is not None:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        # Maybe the manifests already exist: we can read them and save a bit of preparation time.
         manifests = read_manifests_if_cached(
             dataset_parts=splits.keys(), output_dir=output_dir, prefix="capstone"
         )
@@ -86,7 +81,6 @@ def prepare_manifest(
             recording_set = RecordingSet.from_recordings(recordings)
             supervision_set = SupervisionSet.from_segments(supervisions)
 
-            # Normalize text to lowercase
             if normalize_text == "lower":
                 to_lower = lambda text: text.lower()
                 supervision_set = SupervisionSet.from_segments(

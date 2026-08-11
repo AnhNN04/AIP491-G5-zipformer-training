@@ -102,7 +102,7 @@ def prepare_vietnam(
 
     assert corpus_dir.is_dir(), f"No such directory: {corpus_dir}"
 
-    logging.info("Preparing VietASR...")
+    logging.info("Preparing ASR...")
 
     if output_dir is not None:
         output_dir = Path(output_dir)
@@ -110,14 +110,14 @@ def prepare_vietnam(
 
     manifests = defaultdict(dict)
 
-    logging.info(f"Processing VietASR subset: {part}")
+    logging.info(f"Processing ASR subset: {part}")
     if manifests_exist(
         part=part,
         output_dir=output_dir,
         prefix="capstone-ssl",
         suffix="jsonl.gz",
     ):
-        logging.info(f"VietASR subset: {part} already prepared - skipping.")
+        logging.info(f"ASR subset: {part} already prepared - skipping.")
         return manifests
 
     recording_set, supervision_set = _prepare_subset(corpus_dir, lang, num_jobs)

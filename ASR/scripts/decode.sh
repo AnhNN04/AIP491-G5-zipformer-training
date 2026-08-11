@@ -10,5 +10,5 @@ python ./zipformer/decode.py \
     --decoding-method greedy_search \
     --manifest-dir data/fbank \
     --use-averaged-model 1 \
-    --cuts-name test # specify the cut to decode
+    --cuts-name test
 

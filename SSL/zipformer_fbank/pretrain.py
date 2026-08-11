@@ -52,7 +52,7 @@ from lhotse.cut import Cut
 from lhotse.dataset.sampling.base import CutSampler
 from lhotse.utils import fix_random_seed
 from optim import Eden, ScaledAdam
-from ssl_datamodule import VietASRDataModule
+from ssl_datamodule import AsrDataModule
 from torch import Tensor
 from torch.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -1229,7 +1229,7 @@ def run(rank, world_size, args):
     if params.inf_check:
         register_inf_check_hooks(model)
 
-    pretraining = VietASRDataModule(args)
+    pretraining = AsrDataModule(args)
 
     train_cuts = pretraining.train_cuts_vi_ssl(
         prefix=params.manifest_prefix, suffix="_" + params.label_type
@@ -1412,7 +1412,7 @@ def scan_pessimistic_batches_for_oom(
 
 def main():
     parser = get_parser()
-    VietASRDataModule.add_arguments(parser)
+    AsrDataModule.add_arguments(parser)
     args = parser.parse_args()
     args.exp_dir = Path(args.exp_dir)
 

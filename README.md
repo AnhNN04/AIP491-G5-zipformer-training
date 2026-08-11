@@ -18,13 +18,11 @@ Detailed documentation of system design, architecture, and step-by-step pipeline
 
 | Document | Description |
 |----------|-------------|
-| [Repository Guide](docs/repository-guide.md) | Complete directory and structure reference for the codebase. |
-| [ASR System Guide (EN)](docs/asr-system-guide.md) | Detailed English manual on the ASR architecture, running modes, and parameters. |
-| [ASR System Guide (VI)](docs/asr-system-guide-vi.md) | Vietnamese translation of the system architecture and running mode guide. |
+| [ASR System Guide](docs/asr-system-guide.md) | Detailed manual on the ASR architecture, running modes, and parameters. |
 | [Data Preparation Guide](docs/data-preparation-guide.md) | How to format and process labeled (ASR) and unlabeled (SSL) audio datasets. |
 | [Docker Setup Guide](docs/docker-setup-guide.md) | Custom Docker container instructions, GPU configurations, memory tuning, and path bindings. |
 | [Training Pipeline Guide](docs/training-pipeline-guide.md) | Steps to run SSL pretraining, downstream finetuning, and decoding evaluation. |
-| [Zipformer Architecture](docs/zipformer-architecture.md) | Explanation of the U-Net styled multi-rate downsampling Zipformer2 encoder. |
+| [Zipformer Architecture](docs/zipformer-architecture.md) | Explanation of the U-Net styled multi-rate downsampling Zipformer encoder. |
 
 ---
 
@@ -48,27 +46,6 @@ The pipeline relies on `lhotse` for data preprocessing and `icefall` as the core
 
 ---
 
-## Data Preparation
-
-For complete instructions, refer to the [Data Preparation Guide](docs/data-preparation-guide.md).
-
-### 1. Unlabeled Data (SSL)
-Use Voice Activity Detection (VAD) to segment long audio files, place segmented `.wav` files under `SSL/download/ssl_${subset_name}`, and run:
-```bash
-cd SSL
-./prepare_ssl.sh
-```
-This generates unsupervised manifests under `SSL/data/ssl_${subset_name}/`.
-
-### 2. Labeled Data (ASR)
-Place labeled data under `download/supervised` (structured with `.wav` files and corresponding `*.trans.txt` transcription files) and run:
-```bash
-cd ASR
-./prepare.sh
-```
-
----
-
 ## Training Pipeline Execution
 
 For detailed commands and options, refer to the [Training Pipeline Guide](docs/training-pipeline-guide.md).
@@ -84,14 +61,14 @@ cd ASR
 Train the k-means model on a subset of unsupervised acoustic features (approx. 100 hours):
 ```bash
 cd SSL
-./scripts/learn_vietASR_kmeans.sh
+./scripts/learn_ASR_kmeans.sh
 ```
 
 ### 3. Extract Labels
 Generate discrete k-means targets for the unlabeled audio cuts:
 ```bash
 cd SSL
-./scripts/extract_vietASR_kmeans.sh
+./scripts/extract_ASR_kmeans.sh
 ```
 
 ### 4. Self-Supervised Pre-Training (SSL)
@@ -129,9 +106,3 @@ The default encoder architecture is configured as a standard **Zipformer (~68M p
 | Feedforward Dimensions | 512, 768, 1024, 1536, 1024, 768 |
 | Attention Heads | 4, 4, 4, 8, 4, 4 |
 | Total Parameters | ~68M |
-
----
-
-## License
-
-This project is built on the [icefall](https://github.com/k2-fsa/icefall) framework and is licensed under the Apache License 2.0. Detailed license information can be found in the [LICENSE](LICENSE) file.

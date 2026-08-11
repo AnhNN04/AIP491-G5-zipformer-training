@@ -25,7 +25,7 @@ class _SeedWorkers:
         fix_random_seed(self.seed + worker_id)
 
 
-class VietASRDataModule:
+class AsrDataModule:
     """
     DataModule for SSL experiments.
     It assumes there is always one train and valid dataloader,

@@ -75,7 +75,7 @@ def get_parser():
     return parser
 
 
-def compute_fbank_vietASR_ssl_splits(args):
+def compute_fbank_asr_ssl_splits(args):
     num_splits = args.num_splits
     output_dir = f"{args.src_dir}/{args.dataset}_split"
     output_dir = Path(output_dir)
@@ -141,7 +141,7 @@ def main():
     task = args.task
     if task == "run":
         logging.info(vars(args))
-        compute_fbank_vietASR_ssl_splits(args)
+        compute_fbank_asr_ssl_splits(args)
     elif task == "parallel":
         # device_list = os.environ["CUDA_VISIBLE_DEVICES"].split(",")
         def cleanup(processes):
@@ -202,7 +202,7 @@ def run(src_dir, dataset, index, lock_file_name):
 
     print(f"task {src_dir} {dataset} {index} using device {device}")
     state = os.system(
-        f"CUDA_VISIBLE_DEVICES={device} PYTHONUTF8=1 python3 ./local/compute_fbank_vietASR_ssl_splits.py run --src-dir {src_dir} --dataset {dataset} --num-workers 2 --start {index} --stop {index+1} --batch-duration 1000 --num-splits {index+1} 2>&1 | tee log_tem/{dataset}_{index}.log"
+        f"CUDA_VISIBLE_DEVICES={device} PYTHONUTF8=1 python3 ./local/compute_fbank_asr_ssl_splits.py run --src-dir {src_dir} --dataset {dataset} --num-workers 2 --start {index} --stop {index+1} --batch-duration 1000 --num-splits {index+1} 2>&1 | tee log_tem/{dataset}_{index}.log"
     )
     # state = 0
     with device_lock:

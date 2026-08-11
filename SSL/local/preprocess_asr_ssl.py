@@ -38,7 +38,7 @@ def get_args():
     return parser.parse_args()
 
 
-def preprocess_vietASR_ssl(args):
+def preprocess_asr_ssl(args):
     src_dir = Path(args.src_dir)
     output_dir = Path(args.tgt_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -81,7 +81,7 @@ def main():
     logging.basicConfig(format=formatter, level=logging.INFO)
 
     args = get_args()
-    preprocess_vietASR_ssl(args)
+    preprocess_asr_ssl(args)
 
 
 if __name__ == "__main__":

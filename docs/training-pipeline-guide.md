@@ -83,8 +83,8 @@ Before running any code, verify that the raw dataset is formatted correctly:
 * **Execution**:
   ```bash
   cd SSL
-  python3 local/vietASR_ssl.py --lang Vietnam -j 8 /dataset/viVoice-unlabeled-data data data/manifest_data
-  python3 local/preprocess_vietASR_ssl.py --lang Vietnam --dataset "data" --src-dir data/manifest_data --tgt-dir data/ssl_data
+  python3 local/asr_ssl.py --lang Vietnam -j 8 /dataset/viVoice-unlabeled-data data data/manifest_data
+  python3 local/preprocess_asr_ssl.py --lang Vietnam --dataset "data" --src-dir data/manifest_data --tgt-dir data/ssl_data
   ```
 * **Output Validation**:
   Ensure `SSL/data/ssl_data/capstone-ssl_cuts_data_raw.jsonl.gz` is created.
@@ -106,7 +106,7 @@ Before running any code, verify that the raw dataset is formatted correctly:
 ### Step 2.3: Parallel Feature Extraction
 * **Execution**:
   ```bash
-  python3 local/compute_fbank_vietASR_ssl_splits.py parallel --src-dir data/ssl_data --dataset data
+  python3 local/compute_fbank_asr_ssl_splits.py parallel --src-dir data/ssl_data --dataset data
   ```
 * **Output Validation**:
   Ensure `SSL/data/ssl_data/data_split/` now contains completed cuts:
