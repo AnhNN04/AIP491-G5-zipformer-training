@@ -43,7 +43,9 @@ from optim import Eden, ScaledAdam
 from scaling import ScheduledFloat
 from subsampling import Conv2dSubsampling
 from torch import Tensor
+                                                   
 from torch.amp import GradScaler
+         
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from zipformer import Zipformer2
@@ -51,6 +53,7 @@ from zipformer import Zipformer2
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
 
 def get_adjusted_batch_count(params: AttributeDict) -> float:
+                                                                                          
     return (
         params.batch_idx_train
         * (params.max_duration * params.world_size)
@@ -59,6 +62,7 @@ def get_adjusted_batch_count(params: AttributeDict) -> float:
 
 def set_batch_count(model: Union[nn.Module, DDP], batch_count: float) -> None:
     if isinstance(model, DDP):
+                                  
         model = model.module
     for name, module in model.named_modules():
         if hasattr(module, "batch_count"):
@@ -160,20 +164,160 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="""Dimension used in the joiner model.
         Outputs from the encoder and decoder model are projected
         to this dimension before adding.
+        """,
+    )
+
+    parser.add_argument(
+        "--causal",
+        type=str2bool,
+        default=False,
+        help="If True, use causal version of model.",
+    )
+
+    parser.add_argument(
+        "--chunk-size",
+        type=str,
+        default="16,32,64,-1",
+        help="Chunk sizes (at 50Hz frame rate) will be chosen randomly from this list during training. "
+        " Must be just -1 if --causal=False",
+    )
+
+    parser.add_argument(
+        "--left-context-frames",
+        type=str,
+        default="64,128,256,-1",
+        help="Maximum left-contexts for causal training, measured in frames which will "
+        "be converted to a number of chunks.  If splitting into chunks, "
+        "chunk left-context frames will be chosen randomly from this list; else not relevant.",
+    )
+
+    parser.add_argument(
+        "--use-transducer",
+        type=str2bool,
+        default=True,
+        help="If True, use Transducer head.",
+    )
+
+    parser.add_argument(
+        "--use-ctc",
+        type=str2bool,
+        default=False,
+        help="If True, use CTC head.",
+    )
+
+    parser.add_argument(
+        "--pretrain-path",
+        type=str,
+                          
+        help="""
         Pretrained checkpoint for encoder
+        """,
+    )
+
+    parser.add_argument(
+        "--pretrain-type",
+        type=str,
+        default="ASR",
+        help="""
         Pretrained checkpoint for encoder
-Resume training from this epoch. It should be positive.
+        """,
+    )
+
+def get_parser():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument(
+        "--world-size",
+        type=int,
+        default=1,
+        help="Number of GPUs for DDP training.",
+    )
+
+    parser.add_argument(
+        "--master-port",
+        type=int,
+        default=12354,
+        help="Master port to use for DDP training.",
+    )
+
+    parser.add_argument(
+        "--tensorboard",
+        type=str2bool,
+        default=True,
+        help="Should various information be logged in tensorboard.",
+    )
+
+    parser.add_argument(
+        "--num-epochs",
+        type=int,
+        default=30,
+        help="Number of epochs to train.",
+    )
+
+    parser.add_argument(
+        "--start-epoch",
+        type=int,
+        default=1,
+        help="""Resume training from this epoch. It should be positive.
         If larger than 1, it will load checkpoint from
         exp-dir/epoch-{start_epoch-1}.pt
-If positive, --start-epoch is ignored and
+        """,
+    )
+
+    parser.add_argument(
+        "--start-batch",
+        type=int,
+        default=0,
+        help="""If positive, --start-epoch is ignored and
         it loads the checkpoint from exp-dir/checkpoint-{start_batch}.pt
-The experiment dir.
+        """,
+    )
+
+    parser.add_argument(
+        "--train-cuts",
+        type=str,
+        default="2000h",
+        help="""The experiment dir.
         It specifies the directory where all training related
         files, e.g., checkpoints, log, etc, are saved
-The experiment dir.
+        """,
+    )
+
+    parser.add_argument(
+        "--label-type",
+        type=str,
+        default="kmeans",
+        help="label type",
+    )
+
+    parser.add_argument(
+        "--exp-dir",
+        type=str,
+        default="zipformer/exp",
+        help="""The experiment dir.
         It specifies the directory where all training related
         files, e.g., checkpoints, log, etc, are saved
-Number of steps that affects how rapidly the learning rate
+        """,
+    )
+
+    parser.add_argument(
+        "--bpe-model",
+        type=str,
+        default="data/lang_bpe_500/bpe.model",
+        help="Path to the BPE model",
+    )
+
+    parser.add_argument(
+        "--base-lr", type=float, default=0.045, help="The base learning rate."
+    )
+
+    parser.add_argument(
+        "--lr-batches",
+        type=float,
+        default=7500,
+        help="""Number of steps that affects how rapidly the learning rate
         decreases. We suggest not to change this.""",
     )
 
@@ -182,27 +326,421 @@ Number of steps that affects how rapidly the learning rate
         type=float,
         default=3.5,
         help="""Number of epochs that affects how rapidly the learning rate decreases.
-Save checkpoint after processing this number of batches"
+        """,
+    )
+
+    parser.add_argument(
+        "--ref-duration",
+        type=float,
+        default=600,
+        help="Reference batch duration for purposes of adjusting batch counts for setting various "
+        "schedules inside the model",
+    )
+
+    parser.add_argument(
+        "--context-size",
+        type=int,
+        default=2,
+        help="The context size in the decoder. 1 means bigram; 2 means tri-gram",
+    )
+
+    parser.add_argument(
+        "--prune-range",
+        type=int,
+        default=5,
+        help="The prune range for rnnt loss, it means how many symbols(context)"
+        "we are using to compute the loss",
+    )
+
+    parser.add_argument(
+        "--lm-scale",
+        type=float,
+        default=0.25,
+        help="The scale to smooth the loss with lm "
+        "(output of prediction network) part.",
+    )
+
+    parser.add_argument(
+        "--am-scale",
+        type=float,
+        default=0.0,
+        help="The scale to smooth the loss with am (output of encoder network) part.",
+    )
+
+    parser.add_argument(
+        "--simple-loss-scale",
+        type=float,
+        default=0.5,
+        help="To get pruning ranges, we will calculate a simple version"
+        "loss(joiner is just addition), this simple loss also uses for"
+        "training (as a regularization item). We will scale the simple loss"
+        "with this parameter before adding to the final loss.",
+    )
+
+    parser.add_argument(
+        "--ctc-loss-scale",
+        type=float,
+        default=0.2,
+        help="Scale for CTC loss.",
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="The seed for random generators intended for reproducibility",
+    )
+
+    parser.add_argument(
+        "--print-diagnostics",
+        type=str2bool,
+        default=False,
+        help="Accumulate stats on activations, print them and exit.",
+    )
+
+    parser.add_argument(
+        "--inf-check",
+        type=str2bool,
+        default=False,
+        help="Add hooks to check for infinite module outputs and gradients.",
+    )
+
+    parser.add_argument(
+        "--save-every-n",
+        type=int,
+        default=4000,
+        help="""Save checkpoint after processing this number of batches"
         periodically. We save checkpoint to exp-dir/ whenever
         params.batch_idx_train % save_every_n == 0. The checkpoint filename
         has the form: f'exp-dir/checkpoint-{params.batch_idx_train}.pt'
         Note: It also saves checkpoint to `exp-dir/epoch-xxx.pt` at the
         end of each epoch where `xxx` is the epoch number counting from 1.
-Only keep this number of checkpoints on disk.
+        """,
+    )
+
+    parser.add_argument(
+        "--keep-last-k",
+        type=int,
+        default=30,
+        help="""Only keep this number of checkpoints on disk.
         For instance, if it is 3, there are only 3 checkpoints
         in the exp-dir with filenames `checkpoint-xxx.pt`.
         It does not affect checkpoints with name `epoch-xxx.pt`.
-Update the averaged model, namely `model_avg`, after processing
+        """,
+    )
+
+    parser.add_argument(
+        "--average-period",
+        type=int,
+        default=200,
+        help="""Update the averaged model, namely `model_avg`, after processing
         this number of batches. `model_avg` is a separate version of model,
         in which each floating-point parameter is the average of all the
         parameters from the start of training. Each time we take the average,
         we do: `model_avg = model * (average_period / batch_idx_train) +
             model_avg * ((batch_idx_train - average_period) / batch_idx_train)`.
-Return a dict containing training parameters.
-Load checkpoint from file.
-Save model, optimizer, scheduler and training stats to file.
+        """,
+    )
+
+    parser.add_argument(
+        "--use-fp16",
+        type=str2bool,
+        default=False,
+        help="Whether to use half precision training.",
+    )
+
+    add_model_arguments(parser)
+
+    return parser
+
+def get_params() -> AttributeDict:
+    """Return a dict containing training parameters.
+    """
+    params = AttributeDict(
+        {
+            "best_train_loss": float("inf"),
+            "best_valid_loss": float("inf"),
+            "best_train_epoch": -1,
+            "best_valid_epoch": -1,
+            "batch_idx_train": 0,
+            "log_interval": 50,
+            "reset_interval": 200,
+            "valid_interval": 3000,                                
+                                      
+            "feature_dim": 80,
+            "subsampling_factor": 4,                                 
+            "warm_step": 2000,
+            "env_info": get_env_info(),
+        }
+    )
+
+    return params
+
+def _to_int_tuple(s: str):
+    return tuple(map(int, s.split(",")))
+
+def get_encoder_embed(params: AttributeDict) -> nn.Module:
+    encoder_embed = Conv2dSubsampling(
+        in_channels=params.feature_dim,
+        out_channels=_to_int_tuple(params.encoder_dim)[0],
+        dropout=ScheduledFloat((0.0, 0.3), (20000.0, 0.1)),
+    )
+    if params.pretrain_path is not None:
+        checkpoint = torch.load(params.pretrain_path, map_location=torch.device("cpu"))
+        checkpoint = checkpoint["model"]
+        new_checkpoint = OrderedDict()
+        prefix = "encoder_embed."
+        for item in checkpoint:
+            if item.startswith(prefix):
+                new_checkpoint[item[len(prefix) :]] = checkpoint[item]
+        encoder_embed.load_state_dict(new_checkpoint)
+
+    return encoder_embed
+
+def get_encoder_model(params: AttributeDict) -> nn.Module:
+    encoder = Zipformer2(
+        output_downsampling_factor=2,
+        downsampling_factor=_to_int_tuple(params.downsampling_factor),
+        num_encoder_layers=_to_int_tuple(params.num_encoder_layers),
+        encoder_dim=_to_int_tuple(params.encoder_dim),
+        encoder_unmasked_dim=_to_int_tuple(params.encoder_unmasked_dim),
+        query_head_dim=_to_int_tuple(params.query_head_dim),
+        pos_head_dim=_to_int_tuple(params.pos_head_dim),
+        value_head_dim=_to_int_tuple(params.value_head_dim),
+        pos_dim=params.pos_dim,
+        num_heads=_to_int_tuple(params.num_heads),
+        feedforward_dim=_to_int_tuple(params.feedforward_dim),
+        cnn_module_kernel=_to_int_tuple(params.cnn_module_kernel),
+        dropout=ScheduledFloat((0.0, 0.3), (20000.0, 0.1)),
+        warmup_batches=4000.0,
+        causal=params.causal,
+        chunk_size=_to_int_tuple(params.chunk_size),
+        left_context_frames=_to_int_tuple(params.left_context_frames),
+    )
+    if params.pretrain_path is not None:
+        checkpoint = torch.load(params.pretrain_path, map_location=torch.device("cpu"))
+        checkpoint = checkpoint["model"]
+        new_checkpoint = OrderedDict()
+        prefix = "encoder."
+        for item in checkpoint:
+            if params.pretrain_type == "SSL":
+                if item == "encoder.downsample_output.bias":
+                    continue
+            if item.startswith(prefix):
+                new_checkpoint[item[len(prefix) :]] = checkpoint[item]
+        missing_keys, unexpected_keys = encoder.load_state_dict(
+            new_checkpoint, strict=False
+        )
+        print(f"missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}")
+    return encoder
+
+def get_decoder_model(params: AttributeDict) -> nn.Module:
+    decoder = Decoder(
+        vocab_size=params.vocab_size,
+        decoder_dim=params.decoder_dim,
+        blank_id=params.blank_id,
+        context_size=params.context_size,
+    )
+    return decoder
+
+def get_joiner_model(params: AttributeDict) -> nn.Module:
+    joiner = Joiner(
+        encoder_dim=max(_to_int_tuple(params.encoder_dim)),
+        decoder_dim=params.decoder_dim,
+        joiner_dim=params.joiner_dim,
+        vocab_size=params.vocab_size,
+    )
+    return joiner
+
+def get_model(params: AttributeDict) -> nn.Module:
+    assert params.use_transducer or params.use_ctc, (
+        f"At least one of them should be True, "
+        f"but got params.use_transducer={params.use_transducer}, "
+        f"params.use_ctc={params.use_ctc}"
+    )
+
+    encoder_embed = get_encoder_embed(params)
+    encoder = get_encoder_model(params)
+
+    if params.use_transducer:
+        decoder = get_decoder_model(params)
+        joiner = get_joiner_model(params)
+    else:
+        decoder = None
+        joiner = None
+
+    model = AsrModel(
+        encoder_embed=encoder_embed,
+        encoder=encoder,
+        decoder=decoder,
+        joiner=joiner,
+        attention_decoder=None,
+        encoder_dim=max(_to_int_tuple(params.encoder_dim)),
+        decoder_dim=params.decoder_dim,
+        vocab_size=params.vocab_size,
+        use_transducer=params.use_transducer,
+        use_ctc=params.use_ctc,
+        use_attention_decoder=False,
+    )
+    return model
+
+def load_checkpoint_if_available(
+    params: AttributeDict,
+    model: nn.Module,
+    model_avg: nn.Module = None,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    scheduler: Optional[LRSchedulerType] = None,
+) -> Optional[Dict[str, Any]]:
+    """Load checkpoint from file.
+    """
+    if params.start_batch > 0:
+        filename = params.exp_dir / f"checkpoint-{params.start_batch}.pt"
+    elif params.start_epoch > 1:
+        filename = params.exp_dir / f"epoch-{params.start_epoch-1}.pt"
+    else:
+        return None
+
+    assert filename.is_file(), f"{filename} does not exist!"
+
+    saved_params = load_checkpoint(
+        filename,
+        model=model,
+        model_avg=model_avg,
+        optimizer=optimizer,
+        scheduler=scheduler,
+    )
+
+    keys = [
+        "best_train_epoch",
+        "best_valid_epoch",
+        "batch_idx_train",
+        "best_train_loss",
+        "best_valid_loss",
+    ]
+    for k in keys:
+        params[k] = saved_params[k]
+
+    if params.start_batch > 0:
+        if "cur_epoch" in saved_params:
+            params["start_epoch"] = saved_params["cur_epoch"]
+
+    return saved_params
+
+def save_checkpoint(
+    params: AttributeDict,
+    model: Union[nn.Module, DDP],
+    model_avg: Optional[nn.Module] = None,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    scheduler: Optional[LRSchedulerType] = None,
+    sampler: Optional[CutSampler] = None,
+    scaler: Optional[GradScaler] = None,
+    rank: int = 0,
+) -> None:
+    """Save model, optimizer, scheduler and training stats to file.
+    """
+    if rank != 0:
+        return
+    filename = params.exp_dir / f"epoch-{params.cur_epoch}.pt"
+    save_checkpoint_impl(
+        filename=filename,
+        model=model,
+        model_avg=model_avg,
+        params=params,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        sampler=sampler,
+        scaler=scaler,
+        rank=rank,
+    )
+
+    if params.best_train_epoch == params.cur_epoch:
+        best_train_filename = params.exp_dir / "best-train-loss.pt"
+        copyfile(src=filename, dst=best_train_filename)
+
+    if params.best_valid_epoch == params.cur_epoch:
+        best_valid_filename = params.exp_dir / "best-valid-loss.pt"
+        copyfile(src=filename, dst=best_valid_filename)
+
+def compute_loss(
+    params: AttributeDict,
+    model: Union[nn.Module, DDP],
+    sp: spm.SentencePieceProcessor,
+    batch: dict,
+    is_training: bool,
+) -> Tuple[Tensor, MetricsTracker]:
+    """
     Compute loss given the model and its inputs.
-Run the validation process."""
+    """
+    device = model.device if isinstance(model, DDP) else next(model.parameters()).device
+    feature = batch["inputs"]
+                                    
+    assert feature.ndim == 3
+    feature = feature.to(device)
+
+    supervisions = batch["supervisions"]
+    feature_lens = supervisions["num_frames"].to(device)
+
+    batch_idx_train = params.batch_idx_train
+    warm_step = params.warm_step
+
+    texts = batch["supervisions"]["text"]
+    y = sp.encode(texts, out_type=int)
+    y = k2.RaggedTensor(y)
+
+    with torch.set_grad_enabled(is_training):
+        simple_loss, pruned_loss, ctc_loss, _ = model(
+            x=feature,
+            x_lens=feature_lens,
+            y=y,
+            prune_range=params.prune_range,
+            am_scale=params.am_scale,
+            lm_scale=params.lm_scale,
+        )
+
+        loss = 0.0
+
+        if params.use_transducer:
+            s = params.simple_loss_scale
+                                                                          
+            simple_loss_scale = (
+                s
+                if batch_idx_train >= warm_step
+                else 1.0 - (batch_idx_train / warm_step) * (1.0 - s)
+            )
+            pruned_loss_scale = (
+                1.0
+                if batch_idx_train >= warm_step
+                else 0.1 + 0.9 * (batch_idx_train / warm_step)
+            )
+            loss += simple_loss_scale * simple_loss + pruned_loss_scale * pruned_loss
+
+        if params.use_ctc:
+            loss += params.ctc_loss_scale * ctc_loss
+
+    assert loss.requires_grad == is_training
+
+    info = MetricsTracker()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        info["frames"] = (feature_lens // params.subsampling_factor).sum().item()
+
+    info["loss"] = loss.detach().cpu().item()
+    if params.use_transducer:
+        info["simple_loss"] = simple_loss.detach().cpu().item()
+        info["pruned_loss"] = pruned_loss.detach().cpu().item()
+    if params.use_ctc:
+        info["ctc_loss"] = ctc_loss.detach().cpu().item()
+
+    return loss, info
+
+def compute_validation_loss(
+    params: AttributeDict,
+    model: Union[nn.Module, DDP],
+    sp: spm.SentencePieceProcessor,
+    valid_dl: torch.utils.data.DataLoader,
+    world_size: int = 1,
+) -> MetricsTracker:
+    """Run the validation process."""
     model.eval()
 
     tot_loss = MetricsTracker()
@@ -242,6 +780,8 @@ def train_one_epoch(
     world_size: int = 1,
     rank: int = 0,
 ) -> None:
+    """Train the model for one epoch.
+    """
     model.train()
 
     tot_loss = MetricsTracker()
@@ -277,6 +817,7 @@ def train_one_epoch(
                     batch=batch,
                     is_training=True,
                 )
+                           
             tot_loss = (tot_loss * (1 - 1 / params.reset_interval)) + loss_info
 
             scaler.scale(loss).backward()
@@ -328,6 +869,7 @@ def train_one_epoch(
             )
 
         if batch_idx % 100 == 0 and params.use_fp16:
+                                                                                           
             cur_grad_scale = scaler._scale.item()
 
             if cur_grad_scale < 8.0 or (cur_grad_scale < 32.0 and batch_idx % 400 == 0):
@@ -434,6 +976,7 @@ def run(rank, world_size, args):
     assert params.save_every_n >= params.average_period
     model_avg: Optional[nn.Module] = None
     if rank == 0:
+                                            
         model_avg = copy.deepcopy(model).to(torch.float64)
 
     assert params.start_epoch > 0, params.start_epoch
@@ -448,7 +991,7 @@ def run(rank, world_size, args):
 
     optimizer = ScaledAdam(
         get_parameter_groups_with_lrs(model, lr=params.base_lr, include_names=True),
-        lr=params.base_lr,  
+        lr=params.base_lr,                         
         clipping_scale=2.0,
     )
 
@@ -469,7 +1012,7 @@ def run(rank, world_size, args):
     if params.print_diagnostics:
         opts = diagnostics.TensorDiagnosticOptions(
             512
-        )  
+        )                                    
         diagnostic = diagnostics.attach_diagnostics(model, opts)
 
     if params.inf_check:
@@ -503,6 +1046,7 @@ def run(rank, world_size, args):
     valid_cuts = asr_train.dev_cuts()
 
     if params.start_batch > 0 and checkpoints and "sampler" in checkpoints:
+                                                                          
         sampler_state_dict = checkpoints["sampler"]
     else:
         sampler_state_dict = None
@@ -514,7 +1058,9 @@ def run(rank, world_size, args):
     valid_dl = asr_train.valid_dataloaders(
         valid_cuts,
     )
-    scaler = GradScaler('cuda', enabled=params.use_fp16, init_scale=1.0) 
+                                                                                                                    
+    scaler = GradScaler('cuda', enabled=params.use_fp16, init_scale=1.0)          
+               
     if checkpoints and "grad_scaler" in checkpoints:
         logging.info("Loading grad scaler state dict")
         scaler.load_state_dict(checkpoints["grad_scaler"])
@@ -570,6 +1116,8 @@ def display_and_save_batch(
     params: AttributeDict,
     sp: spm.SentencePieceProcessor,
 ) -> None:
+    """Display the batch statistics and save the batch into disk.
+    """
     from lhotse.utils import uuid4
 
     filename = f"{params.exp_dir}/batch-{uuid4()}.pt"
@@ -644,3 +1192,4 @@ torch.set_num_interop_threads(1)
 
 if __name__ == "__main__":
     main()
+
