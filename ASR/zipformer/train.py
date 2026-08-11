@@ -476,9 +476,6 @@ def get_params() -> AttributeDict:
             # parameters for zipformer
             "feature_dim": 80,
             "subsampling_factor": 4,  # not passed in, this is fixed.
-            # parameters for attention-decoder
-            "ignore_id": -1,
-            "label_smoothing": 0.1,
             "warm_step": 2000,
             "env_info": get_env_info(),
         }
