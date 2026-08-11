@@ -1,5 +1,3 @@
-
-import argparse
 import logging
 import os
 from pathlib import Path
@@ -11,30 +9,7 @@ from icefall.utils import get_executor, str2bool
 from lhotse import CutSet, Fbank, FbankConfig, LilcomChunkyWriter
 from lhotse.recipes.utils import read_manifests_if_cached
 
-def get_args():
-    parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--bpe-model",
-        type=str,
-        help="""Path to the bpe.model. If not None, we will remove short and
-        long utterances before extracting features""",
-    )
-
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        help="""Dataset parts to compute fbank. If None, we will use all""",
-    )
-
-    parser.add_argument(
-        "--perturb-speed",
-        type=str2bool,
-        default=False,
-        help="""Perturb speed with factor 0.9 and 1.1 on train subset.""",
-    )
-
-    return parser.parse_args()
 
 def compute_fbank(
     bpe_model: Optional[str] = None,
@@ -103,12 +78,9 @@ def compute_fbank(
 
 if __name__ == "__main__":
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
-
     logging.basicConfig(format=formatter, level=logging.INFO)
-    args = get_args()
-    logging.info(vars(args))
     compute_fbank(
-        bpe_model=args.bpe_model,
-        dataset=args.dataset,
-        perturb_speed=args.perturb_speed,
+        bpe_model=None,
+        dataset=None,
+        perturb_speed=False,
     )

@@ -1,4 +1,3 @@
-import argparse
 import logging
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -129,59 +128,17 @@ def parse_utterance(
     )
     return recording, segment
 
-def run(
-    corpus_dir: Pathlike,
-    output_dir: Pathlike,
-    lanugage: str,
-    normalize_text: str,
-    num_jobs: int,
-):
-    prepare_manifest(
-        corpus_dir,
-        output_dir=output_dir,
-        language=lanugage,
-        num_jobs=num_jobs,
-        normalize_text=normalize_text,
-    )
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--corpus-dir",
-        type=Path,
-        default=Path("/dataset/100h-labeled-data"),
-        help="Path to the data dir.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("ASR/data/manifests"),
-        help="Path where to write the manifests.",
-    )
-    parser.add_argument(
-        "--language",
-        type=str,
-        default="vietnamese",
-        help="dataset language",
-    )
-    parser.add_argument(
-        "--normalize-text",
-        type=str,
-        default="lower",
-        help="Conversion of transcripts to lower-case (originally in upper-case)",
-    )
-    parser.add_argument(
-        "--num-jobs",
-        type=int,
-        default=8,
-        help="How many threads to use (can give good speed-ups with slow disks).",
-    )
-    args = parser.parse_args()
-
-    run(
-        args.corpus_dir,
-        args.output_dir,
-        args.language,
-        args.normalize_text,
-        args.num_jobs,
+    formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
+    logging.basicConfig(format=formatter, level=logging.INFO)
+    
+    corpus_dir = Path("/dataset/100h-labeled-data")
+    output_dir = Path("ASR/data/manifests")
+    
+    prepare_manifest(
+        corpus_dir=corpus_dir,
+        output_dir=output_dir,
+        language="vietnamese",
+        normalize_text="lower",
+        num_jobs=8,
     )

@@ -1,36 +1,10 @@
-import argparse
 import shutil
 from pathlib import Path
 from typing import Dict
 
 import sentencepiece as spm
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--lang-dir",
-        type=str,
-        default="data/lang_bpe_2000",
-        help="""Input and output directory.
-        The generated bpe.model is saved to this directory.
-        """,
-    )
 
-    parser.add_argument(
-        "--transcript",
-        type=str,
-        default="data/lang_bpe_2000/transcript_words.txt",
-        help="Training transcript.",
-    )
-
-    parser.add_argument(
-        "--vocab-size",
-        type=int,
-        default=2000,
-        help="Vocabulary size for BPE training",
-    )
-
-    return parser.parse_args()
 
 def generate_tokens(lang_dir: Path):
     """
@@ -44,14 +18,13 @@ def generate_tokens(lang_dir: Path):
             f.write(f"{sym} {i}\n")
 
 def main():
-    args = get_args()
-    vocab_size = args.vocab_size
-    lang_dir = Path(args.lang_dir)
+    vocab_size = 2000
+    lang_dir = Path("data/lang_bpe_2000")
 
     model_type = "unigram"
 
     model_prefix = f"{lang_dir}/{model_type}_{vocab_size}"
-    train_text = args.transcript
+    train_text = "data/lang_bpe_2000/transcript_words.txt"
     character_coverage = 1.0
     input_sentence_size = 100000000
 
