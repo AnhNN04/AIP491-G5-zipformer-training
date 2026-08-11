@@ -1,4 +1,3 @@
-import argparse
 import inspect
 import logging
 import os
@@ -38,137 +37,23 @@ class _SeedWorkers:
 
 class AsrDataModule:
 
-    def __init__(self, args: argparse.Namespace):
-        self.args = args
-
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser):
-        group = parser.add_argument_group(
-            title="ASR data related options",
-            description="These options are used for the preparation of "
-            "PyTorch DataLoaders from Lhotse CutSet's -- they control the "
-            "effective batch sizes, sampling strategies, applied data "
-            "augmentations, etc.",
-        )
-
-        group.add_argument(
-            "--manifest-dir",
-            type=Path,
-            default=Path("data/fbank"),
-            help="Path to directory with train/valid/test cuts.",
-        )
-        group.add_argument(
-            "--max-duration",
-            type=int,
-            default=300,
-            help="Maximum pooled recordings duration (seconds) in a "
-            "single batch. You can reduce it if it causes CUDA OOM.",
-        )
-        group.add_argument(
-            "--bucketing-sampler",
-            type=str2bool,
-            default=True,
-            help="When enabled, the batches will come from buckets of "
-            "similar duration (saves padding frames).",
-        )
-        group.add_argument(
-            "--num-buckets",
-            type=int,
-            default=30,
-            help="The number of buckets for the DynamicBucketingSampler"
-            "(you might want to increase it for larger datasets).",
-        )
-        group.add_argument(
-            "--concatenate-cuts",
-            type=str2bool,
-            default=False,
-            help="When enabled, utterances (cuts) will be concatenated "
-            "to minimize the amount of padding.",
-        )
-        group.add_argument(
-            "--duration-factor",
-            type=float,
-            default=1.0,
-            help="Determines the maximum duration of a concatenated cut "
-            "relative to the duration of the longest cut in a batch.",
-        )
-        group.add_argument(
-            "--gap",
-            type=float,
-            default=1.0,
-            help="The amount of padding (in seconds) inserted between "
-            "concatenated cuts. This padding is filled with noise when "
-            "noise augmentation is used.",
-        )
-        group.add_argument(
-            "--on-the-fly-feats",
-            type=str2bool,
-            default=False,
-            help="When enabled, use on-the-fly cut mixing and feature "
-            "extraction. Will drop existing precomputed feature manifests "
-            "if available.",
-        )
-        group.add_argument(
-            "--shuffle",
-            type=str2bool,
-            default=True,
-            help="When enabled (=default), the examples will be "
-            "shuffled for each epoch.",
-        )
-        group.add_argument(
-            "--drop-last",
-            type=str2bool,
-            default=True,
-            help="Whether to drop last batch. Used by sampler.",
-        )
-        group.add_argument(
-            "--return-cuts",
-            type=str2bool,
-            default=True,
-            help="When enabled, each batch will have the "
-            "field: batch['supervisions']['cut'] with the cuts that "
-            "were used to construct it.",
-        )
-
-        group.add_argument(
-            "--num-workers",
-            type=int,
-            default=2,
-            help="The number of training dataloader workers that "
-            "collect the batches.",
-        )
-
-        group.add_argument(
-            "--enable-spec-aug",
-            type=str2bool,
-            default=True,
-            help="When enabled, use SpecAugment for training dataset.",
-        )
-
-        group.add_argument(
-            "--spec-aug-time-warp-factor",
-            type=int,
-            default=80,
-            help="Used only when --enable-spec-aug is True. "
-            "It specifies the factor for time warping in SpecAugment. "
-            "Larger values mean more warping. "
-            "A value less than 1 means to disable time warp.",
-        )
-
-        group.add_argument(
-            "--enable-musan",
-            type=str2bool,
-            default=False,
-            help="When enabled, select noise from MUSAN and mix it"
-            "with training dataset. ",
-        )
-
-        group.add_argument(
-            "--input-strategy",
-            type=str,
-            default="PrecomputedFeatures",
-            help="AudioSamples or PrecomputedFeatures",
-        )
+    def __init__(self, args: Optional[Any] = None):
+        self.manifest_dir = Path("data/fbank")
+        self.max_duration = 300
+        self.bucketing_sampler = True
+        self.num_buckets = 30
+        self.concatenate_cuts = False
+        self.duration_factor = 1.0
+        self.gap = 1.0
+        self.on_the_fly_feats = False
+        self.shuffle = True
+        self.drop_last = True
+        self.return_cuts = True
+        self.num_workers = 2
+        self.enable_spec_aug = True
+        self.spec_aug_time_warp_factor = 80
+        self.enable_musan = False
+        self.input_strategy = "PrecomputedFeatures"
 
     def train_dataloaders(
         self,
@@ -177,31 +62,31 @@ class AsrDataModule:
         use_kmeans: bool = False,
     ) -> DataLoader:
         transforms = []
-        if self.args.enable_musan:
+        if self.enable_musan:
             logging.info("Enable MUSAN")
             logging.info("About to get Musan cuts")
-            cuts_musan = load_manifest(self.args.manifest_dir / "musan_cuts.jsonl.gz")
+            cuts_musan = load_manifest(self.manifest_dir / "musan_cuts.jsonl.gz")
             transforms.append(
                 CutMix(cuts=cuts_musan, p=0.5, snr=(10, 20), preserve_id=True)
             )
         else:
             logging.info("Disable MUSAN")
 
-        if self.args.concatenate_cuts:
+        if self.concatenate_cuts:
             logging.info(
                 f"Using cut concatenation with duration factor "
-                f"{self.args.duration_factor} and gap {self.args.gap}."
+                f"{self.duration_factor} and gap {self.gap}."
             )
             transforms = [
                 CutConcatenate(
-                    duration_factor=self.args.duration_factor, gap=self.args.gap
+                    duration_factor=self.duration_factor, gap=self.gap
                 )
             ] + transforms
 
         input_transforms = []
-        if self.args.enable_spec_aug:
+        if self.enable_spec_aug:
             logging.info("Enable SpecAugment")
-            logging.info(f"Time warp factor: {self.args.spec_aug_time_warp_factor}")
+            logging.info(f"Time warp factor: {self.spec_aug_time_warp_factor}")
             num_frame_masks = 10
             num_frame_masks_parameter = inspect.signature(
                 SpecAugment.__init__
@@ -211,7 +96,7 @@ class AsrDataModule:
             logging.info(f"Num frame mask: {num_frame_masks}")
             input_transforms.append(
                 SpecAugment(
-                    time_warp_factor=self.args.spec_aug_time_warp_factor,
+                    time_warp_factor=self.spec_aug_time_warp_factor,
                     num_frame_masks=num_frame_masks,
                     features_mask_size=27,
                     num_feature_masks=2,
@@ -224,20 +109,20 @@ class AsrDataModule:
         logging.info("About to create train dataset")
         if use_kmeans:
             train = PseudoRecognitionDataset(
-                input_strategy=eval(self.args.input_strategy)(),
+                input_strategy=eval(self.input_strategy)(),
                 cut_transforms=transforms,
                 input_transforms=input_transforms,
-                return_cuts=self.args.return_cuts,
+                return_cuts=self.return_cuts,
             )
         else:
             train = K2SpeechRecognitionDataset(
-                input_strategy=eval(self.args.input_strategy)(),
+                input_strategy=eval(self.input_strategy)(),
                 cut_transforms=transforms,
                 input_transforms=input_transforms,
-                return_cuts=self.args.return_cuts,
+                return_cuts=self.return_cuts,
             )
 
-        if self.args.on_the_fly_feats:
+        if self.on_the_fly_feats:
             if use_kmeans:
                 train = PseudoRecognitionDataset(
                     cut_transforms=transforms,
@@ -245,7 +130,7 @@ class AsrDataModule:
                         Fbank(FbankConfig(num_mel_bins=80))
                     ),
                     input_transforms=input_transforms,
-                    return_cuts=self.args.return_cuts,
+                    return_cuts=self.return_cuts,
                 )
             else:
                 train = K2SpeechRecognitionDataset(
@@ -254,26 +139,26 @@ class AsrDataModule:
                         Fbank(FbankConfig(num_mel_bins=80))
                     ),
                     input_transforms=input_transforms,
-                    return_cuts=self.args.return_cuts,
+                    return_cuts=self.return_cuts,
                 )
 
-        if self.args.bucketing_sampler:
+        if self.bucketing_sampler:
             logging.info("Using DynamicBucketingSampler.")
             train_sampler = DynamicBucketingSampler(
                 cuts_train,
-                max_duration=self.args.max_duration,
-                shuffle=self.args.shuffle,
-                num_buckets=self.args.num_buckets,
-                buffer_size=self.args.num_buckets * 2000,
-                shuffle_buffer_size=self.args.num_buckets * 5000,
-                drop_last=self.args.drop_last,
+                max_duration=self.max_duration,
+                shuffle=self.shuffle,
+                num_buckets=self.num_buckets,
+                buffer_size=self.num_buckets * 2000,
+                shuffle_buffer_size=self.num_buckets * 5000,
+                drop_last=self.drop_last,
             )
         else:
             logging.info("Using SimpleCutSampler.")
             train_sampler = SimpleCutSampler(
                 cuts_train,
-                max_duration=self.args.max_duration,
-                shuffle=self.args.shuffle,
+                max_duration=self.max_duration,
+                shuffle=self.shuffle,
             )
         logging.info("About to create train dataloader")
 
@@ -287,7 +172,7 @@ class AsrDataModule:
             train,
             sampler=train_sampler,
             batch_size=None,
-            num_workers=self.args.num_workers,
+            num_workers=self.num_workers,
             persistent_workers=False,
             worker_init_fn=worker_init_fn,
         )
@@ -298,22 +183,22 @@ class AsrDataModule:
         self, cuts_valid: CutSet, use_kmeans: bool = False
     ) -> DataLoader:
         transforms = []
-        if self.args.concatenate_cuts:
+        if self.concatenate_cuts:
             transforms = [
                 CutConcatenate(
-                    duration_factor=self.args.duration_factor, gap=self.args.gap
+                    duration_factor=self.duration_factor, gap=self.gap
                 )
             ] + transforms
 
         logging.info("About to create dev dataset")
-        if self.args.on_the_fly_feats:
+        if self.on_the_fly_feats:
             if use_kmeans:
                 validate = PseudoRecognitionDataset(
                     cut_transforms=transforms,
                     input_strategy=OnTheFlyFeatures(
                         Fbank(FbankConfig(num_mel_bins=80))
                     ),
-                    return_cuts=self.args.return_cuts,
+                    return_cuts=self.return_cuts,
                 )
             else:
                 validate = K2SpeechRecognitionDataset(
@@ -321,22 +206,22 @@ class AsrDataModule:
                     input_strategy=OnTheFlyFeatures(
                         Fbank(FbankConfig(num_mel_bins=80))
                     ),
-                    return_cuts=self.args.return_cuts,
+                    return_cuts=self.return_cuts,
                 )
         else:
             if use_kmeans:
                 validate = PseudoRecognitionDataset(
                     cut_transforms=transforms,
-                    return_cuts=self.args.return_cuts,
+                    return_cuts=self.return_cuts,
                 )
             else:
                 validate = K2SpeechRecognitionDataset(
                     cut_transforms=transforms,
-                    return_cuts=self.args.return_cuts,
+                    return_cuts=self.return_cuts,
                 )
         valid_sampler = DynamicBucketingSampler(
             cuts_valid,
-            max_duration=self.args.max_duration,
+            max_duration=self.max_duration,
             shuffle=False,
         )
         logging.info("About to create dev dataloader")
@@ -355,20 +240,20 @@ class AsrDataModule:
         if use_kmeans:
             test = PseudoRecognitionDataset(
                 input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80)))
-                if self.args.on_the_fly_feats
-                else eval(self.args.input_strategy)(),
-                return_cuts=self.args.return_cuts,
+                if self.on_the_fly_feats
+                else eval(self.input_strategy)(),
+                return_cuts=self.return_cuts,
             )
         else:
             test = K2SpeechRecognitionDataset(
                 input_strategy=OnTheFlyFeatures(Fbank(FbankConfig(num_mel_bins=80)))
-                if self.args.on_the_fly_feats
-                else eval(self.args.input_strategy)(),
-                return_cuts=self.args.return_cuts,
+                if self.on_the_fly_feats
+                else eval(self.input_strategy)(),
+                return_cuts=self.return_cuts,
             )
         sampler = DynamicBucketingSampler(
             cuts,
-            max_duration=self.args.max_duration,
+            max_duration=self.max_duration,
             shuffle=False,
         )
         logging.debug("About to create test dataloader")
@@ -376,7 +261,7 @@ class AsrDataModule:
             test,
             batch_size=None,
             sampler=sampler,
-            num_workers=self.args.num_workers,
+            num_workers=self.num_workers,
         )
         return test_dl
 
@@ -384,15 +269,15 @@ class AsrDataModule:
     def train_cuts(self) -> CutSet:
         logging.info("About to get train cuts")
         return load_manifest_lazy(
-            self.args.manifest_dir / "capstone_cuts_train.jsonl.gz"
+            self.manifest_dir / "capstone_cuts_train.jsonl.gz"
         )
 
     @lru_cache()
     def dev_cuts(self) -> CutSet:
         logging.info("About to get dev cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "capstone_cuts_dev.jsonl.gz")
+        return load_manifest_lazy(self.manifest_dir / "capstone_cuts_dev.jsonl.gz")
 
     @lru_cache()
     def test_cuts(self) -> CutSet:
         logging.info("About to get test cuts")
-        return load_manifest_lazy(self.args.manifest_dir / "capstone_cuts_test.jsonl.gz")
+        return load_manifest_lazy(self.manifest_dir / "capstone_cuts_test.jsonl.gz")
