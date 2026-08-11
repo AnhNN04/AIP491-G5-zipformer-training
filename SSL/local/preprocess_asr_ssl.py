@@ -1,11 +1,7 @@
 import logging
-import re
-import string
-import unicodedata
 from pathlib import Path
 
-from icefall.utils import str2bool
-from lhotse import CutSet, SupervisionSegment
+from lhotse import CutSet
 from lhotse.recipes.utils import read_manifests_if_cached
 
 

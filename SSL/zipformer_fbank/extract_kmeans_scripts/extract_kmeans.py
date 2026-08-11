@@ -1,4 +1,3 @@
-import argparse
 import json
 import logging
 import os
@@ -70,57 +69,7 @@ def get_model(params, device):
     model.to(device)
     return model
 
-def get_parser():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--model-path", type=str)
-    parser.add_argument("--task-list", type=str)
-    parser.add_argument("--suffix", type=str)
-    parser.add_argument("--start", type=int)
-    parser.add_argument("--end", type=int)
-    parser.add_argument("--src-dir", type=str, nargs="*", help="for build list")
 
-    parser.add_argument("--checkpoint-type", type=str, default="pretrain")
-
-    parser.add_argument(
-        "--epoch",
-        type=int,
-        default=30,
-        help="""It specifies the checkpoint to use for decoding.
-        Note: Epoch counts from 1.
-        You can specify --avg to use more checkpoints for model averaging.""",
-    )
-
-    parser.add_argument(
-        "--iter",
-        type=int,
-        default=0,
-        help="""If positive, --epoch is ignored and it
-        will use the checkpoint exp_dir/checkpoint-iter.pt.
-        You can specify --avg to use more checkpoints for model averaging.
-The pretrained model dir.
-        It specifies the directory where the pretrained checkpoint is saved.""",
-    )
-
-    parser.add_argument(
-        "--context-size",
-        type=int,
-        default=2,
-        help="The context size in the decoder. 1 means bigram; " "2 means tri-gram",
-    )
-
-    parser.add_argument(
-        "--prune-range",
-        type=int,
-        default=5,
-        help="The prune range for rnnt loss, it means how many symbols(context)"
-        "we are using to compute the loss",
-    )
-
-    finetune.add_model_arguments(parser)
-
-    return parser
 
 class ApplyKmeans(object):
     def __init__(self, km_path, device):
@@ -217,8 +166,95 @@ def main(args):
         cuts.to_file(tgt)
         logger.info("finished successfully")
 
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
 if __name__ == "__main__":
-    parser = get_parser()
-    FinetuneAsrDataModule.add_arguments(parser)
-    args = parser.parse_args()
+    import sys
+    args = Namespace(
+        model_path=None,
+        task_list=None,
+        suffix=None,
+        start=None,
+        end=None,
+        src_dir=None,
+        checkpoint_type="pretrain",
+        epoch=30,
+        iter=0,
+        context_size=2,
+        prune_range=5,
+        pretrained_dir=None,
+        bpe_model="../ASR/data/lang_bpe_2000/bpe.model",
+        use_averaged_model=False,
+        avg=1,
+
+        # FinetuneAsrDataModule defaults
+        manifest_dir=Path("data/wav"),
+        max_duration=200.0,
+        bucketing_sampler=True,
+        num_buckets=30,
+        shuffle=True,
+        on_the_fly_feats=False,
+        drop_last=True,
+        num_workers=2,
+        do_normalize=True,
+        return_cuts=True,
+        enable_spec_aug=True,
+        spec_aug_time_warp_factor=80,
+        enable_musan=True,
+        input_strategy="PrecomputedFeatures",
+
+        # 68M Parameter Zipformer Defaults
+        num_encoder_layers="2,2,3,4,3,2",
+        downsampling_factor="1,2,4,8,4,2",
+        feedforward_dim="512,768,1024,1536,1024,768",
+        num_heads="4,4,4,8,4,4",
+        encoder_dim="192,256,384,512,384,256",
+        query_head_dim=32,
+        value_head_dim=12,
+        pos_head_dim=4,
+        pos_dim=48,
+        encoder_unmasked_dim="192,192,256,256,256,192",
+        cnn_module_kernel="31,31,15,15,15,31",
+        decoder_dim=512,
+        joiner_dim=512,
+    )
+
+    for i in range(len(sys.argv)):
+        if sys.argv[i] == "--model-path":
+            args.model_path = sys.argv[i+1]
+        elif sys.argv[i] == "--task-list":
+            args.task_list = sys.argv[i+1]
+        elif sys.argv[i] == "--suffix":
+            args.suffix = sys.argv[i+1]
+        elif sys.argv[i] == "--start":
+            args.start = int(sys.argv[i+1])
+        elif sys.argv[i] == "--end":
+            args.end = int(sys.argv[i+1])
+        elif sys.argv[i] == "--src-dir":
+            args.src_dir = []
+            j = i + 1
+            while j < len(sys.argv) and not sys.argv[j].startswith("--"):
+                args.src_dir.append(sys.argv[j])
+                j += 1
+        elif sys.argv[i] == "--checkpoint-type":
+            args.checkpoint_type = sys.argv[i+1]
+        elif sys.argv[i] == "--epoch":
+            args.epoch = int(sys.argv[i+1])
+        elif sys.argv[i] == "--iter":
+            args.iter = int(sys.argv[i+1])
+        elif sys.argv[i] == "--context-size":
+            args.context_size = int(sys.argv[i+1])
+        elif sys.argv[i] == "--prune-range":
+            args.prune_range = int(sys.argv[i+1])
+        elif sys.argv[i] == "--pretrained-dir":
+            args.pretrained_dir = sys.argv[i+1]
+        elif sys.argv[i] == "--bpe-model":
+            args.bpe_model = sys.argv[i+1]
+        elif sys.argv[i] == "--use-averaged-model":
+            args.use_averaged_model = str2bool(sys.argv[i+1])
+        elif sys.argv[i] == "--avg":
+            args.avg = int(sys.argv[i+1])
+
     main(args)

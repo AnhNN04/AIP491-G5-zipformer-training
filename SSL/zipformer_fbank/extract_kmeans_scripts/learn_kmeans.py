@@ -1,5 +1,4 @@
 
-import argparse
 import logging
 import os
 import random
@@ -14,7 +13,7 @@ import numpy as np
 import sentencepiece as spm
 import torch
 from asr_datamodule import FinetuneAsrDataModule
-from finetune import add_model_arguments
+from asr_datamodule import FinetuneAsrDataModule
 from icefall.checkpoint import (
     average_checkpoints,
     average_checkpoints_with_averaged_model,
@@ -99,70 +98,7 @@ def extract_feature(batch, model):
     encoder_out = torch.cat(holder, dim=0).to(torch.device("cpu")).detach().numpy()
     return encoder_out
 
-def get_parser():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
 
-    parser.add_argument("--km-path", type=str)
-    parser.add_argument("--n-clusters", type=int)
-    parser.add_argument("--files", type=str, nargs="*", default=None)
-    parser.add_argument("--do-training", action="store_true")
-    parser.add_argument("--src-dir", type=str, default=None)
-    parser.add_argument(
-        "--frame-stride",
-        type=int,
-        default=1,
-        help="Subsample frames by keeping every N-th frame to reduce memory usage during K-Means training.",
-    )
-    parser.add_argument("--init", default="k-means++")
-    parser.add_argument("--max-iter", default=100, type=int)
-    parser.add_argument("--batch-size", default=10000, type=int)
-    parser.add_argument("--tol", default=0.0, type=float)
-    parser.add_argument("--max-no-improvement", default=100, type=int)
-    parser.add_argument("--n-init", default=20, type=int)
-    parser.add_argument("--reassignment-ratio", default=0.0, type=float)
-    parser.add_argument("--seed", type=int, default=42)
-
-    parser.add_argument("--checkpoint-type", type=str, default="pretrain")
-
-    parser.add_argument(
-        "--epoch",
-        type=int,
-        default=30,
-        help="""It specifies the checkpoint to use for decoding.
-        Note: Epoch counts from 1.
-        You can specify --avg to use more checkpoints for model averaging.""",
-    )
-
-    parser.add_argument(
-        "--iter",
-        type=int,
-        default=0,
-        help="""If positive, --epoch is ignored and it
-        will use the checkpoint exp_dir/checkpoint-iter.pt.
-        You can specify --avg to use more checkpoints for model averaging.
-The pretrained model dir.
-        It specifies the directory where the pretrained checkpoint is saved.""",
-    )
-
-    parser.add_argument(
-        "--context-size",
-        type=int,
-        default=2,
-        help="The context size in the decoder. 1 means bigram; " "2 means tri-gram",
-    )
-
-    parser.add_argument(
-        "--prune-range",
-        type=int,
-        default=5,
-        help="The prune range for rnnt loss, it means how many symbols(context)"
-        "we are using to compute the loss",
-    )
-
-    add_model_arguments(parser)
-    return parser
 
 def get_model(params, device):
     if params.checkpoint_type == "ASR":
@@ -263,10 +199,117 @@ def learn_kmeans(
 
     logger.info("finished successfully")
 
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
 if __name__ == "__main__":
-    parser = get_parser()
-    FinetuneAsrDataModule.add_arguments(parser)
-    args = parser.parse_args()
+    args = Namespace(
+        km_path="data/kmeans.pt",
+        n_clusters=500,
+        files=None,
+        do_training=False,
+        src_dir=None,
+        frame_stride=1,
+        init="k-means++",
+        max_iter=100,
+        batch_size=10000,
+        tol=0.0,
+        max_no_improvement=100,
+        n_init=20,
+        reassignment_ratio=0.0,
+        seed=42,
+        checkpoint_type="pretrain",
+        epoch=30,
+        iter=0,
+        context_size=2,
+        prune_range=5,
+        pretrained_dir=None,
+        bpe_model="../ASR/data/lang_bpe_2000/bpe.model",
+        use_averaged_model=False,
+        avg=1,
+
+        # FinetuneAsrDataModule defaults
+        manifest_dir=Path("data/wav"),
+        max_duration=200.0,
+        bucketing_sampler=True,
+        num_buckets=30,
+        shuffle=True,
+        on_the_fly_feats=False,
+        drop_last=True,
+        num_workers=2,
+        do_normalize=True,
+        return_cuts=True,
+        enable_spec_aug=True,
+        spec_aug_time_warp_factor=80,
+        enable_musan=True,
+        input_strategy="PrecomputedFeatures",
+
+        # 68M Parameter Zipformer Defaults
+        num_encoder_layers="2,2,3,4,3,2",
+        downsampling_factor="1,2,4,8,4,2",
+        feedforward_dim="512,768,1024,1536,1024,768",
+        num_heads="4,4,4,8,4,4",
+        encoder_dim="192,256,384,512,384,256",
+        query_head_dim=32,
+        value_head_dim=12,
+        pos_head_dim=4,
+        pos_dim=48,
+        encoder_unmasked_dim="192,192,256,256,256,192",
+        cnn_module_kernel="31,31,15,15,15,31",
+        decoder_dim=512,
+        joiner_dim=512,
+    )
+
+    for i in range(len(sys.argv)):
+        if sys.argv[i] == "--km-path":
+            args.km_path = sys.argv[i+1]
+        elif sys.argv[i] == "--n-clusters":
+            args.n_clusters = int(sys.argv[i+1])
+        elif sys.argv[i] == "--files":
+            args.files = []
+            j = i + 1
+            while j < len(sys.argv) and not sys.argv[j].startswith("--"):
+                args.files.append(sys.argv[j])
+                j += 1
+        elif sys.argv[i] == "--do-training":
+            args.do_training = True
+        elif sys.argv[i] == "--src-dir":
+            args.src_dir = sys.argv[i+1]
+        elif sys.argv[i] == "--frame-stride":
+            args.frame_stride = int(sys.argv[i+1])
+        elif sys.argv[i] == "--max-iter":
+            args.max_iter = int(sys.argv[i+1])
+        elif sys.argv[i] == "--batch-size":
+            args.batch_size = int(sys.argv[i+1])
+        elif sys.argv[i] == "--tol":
+            args.tol = float(sys.argv[i+1])
+        elif sys.argv[i] == "--max-no-improvement":
+            args.max_no_improvement = int(sys.argv[i+1])
+        elif sys.argv[i] == "--n-init":
+            args.n_init = int(sys.argv[i+1])
+        elif sys.argv[i] == "--reassignment-ratio":
+            args.reassignment_ratio = float(sys.argv[i+1])
+        elif sys.argv[i] == "--seed":
+            args.seed = int(sys.argv[i+1])
+        elif sys.argv[i] == "--checkpoint-type":
+            args.checkpoint_type = sys.argv[i+1]
+        elif sys.argv[i] == "--epoch":
+            args.epoch = int(sys.argv[i+1])
+        elif sys.argv[i] == "--iter":
+            args.iter = int(sys.argv[i+1])
+        elif sys.argv[i] == "--context-size":
+            args.context_size = int(sys.argv[i+1])
+        elif sys.argv[i] == "--prune-range":
+            args.prune_range = int(sys.argv[i+1])
+        elif sys.argv[i] == "--pretrained-dir":
+            args.pretrained_dir = sys.argv[i+1]
+        elif sys.argv[i] == "--bpe-model":
+            args.bpe_model = sys.argv[i+1]
+        elif sys.argv[i] == "--use-averaged-model":
+            args.use_averaged_model = str2bool(sys.argv[i+1])
+        elif sys.argv[i] == "--avg":
+            args.avg = int(sys.argv[i+1])
 
     sp = spm.SentencePieceProcessor()
     sp.load(args.bpe_model)
