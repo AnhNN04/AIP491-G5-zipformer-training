@@ -27,7 +27,7 @@ Before running any code, verify that the raw dataset is formatted correctly:
 ### Step 1.2: Generate Manifests
 * **Execution**:
   ```bash
-  python3 ASR/local/prepare_manifest.py --num-jobs 8 --corpus-dir /dataset/100h-labeled-data --output-dir ASR/data/manifests --language vietnamese
+  python3 ASR/local/prepare_manifest.py
   ```
 * **Output Validation**:
   Ensure the following files are created in `ASR/data/manifests/`:
@@ -68,7 +68,7 @@ Before running any code, verify that the raw dataset is formatted correctly:
   ```bash
   mkdir -p data/lang_bpe_2000
   find -L "/dataset/100h-labeled-data/transcripts" -name "*.txt" -exec awk '1' {} + > data/lang_bpe_2000/transcript_words.txt
-  python3 local/train_bpe_model.py --lang-dir data/lang_bpe_2000 --vocab-size 2000 --transcript data/lang_bpe_2000/transcript_words.txt
+  python3 local/train_bpe_model.py
   ```
 * **Output Validation**:
   Ensure `ASR/data/lang_bpe_2000/` contains:

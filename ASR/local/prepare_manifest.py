@@ -146,20 +146,34 @@ def run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--corpus-dir", type=Path, help="Path to the data dir.")
     parser.add_argument(
-        "--output-dir", type=Path, help="Path where to write the manifests."
+        "--corpus-dir",
+        type=Path,
+        default=Path("/dataset/100h-labeled-data"),
+        help="Path to the data dir.",
     )
-    parser.add_argument("--language", type=str, help="dataset language")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("ASR/data/manifests"),
+        help="Path where to write the manifests.",
+    )
+    parser.add_argument(
+        "--language",
+        type=str,
+        default="vietnamese",
+        help="dataset language",
+    )
     parser.add_argument(
         "--normalize-text",
         type=str,
+        default="lower",
         help="Conversion of transcripts to lower-case (originally in upper-case)",
     )
     parser.add_argument(
         "--num-jobs",
         type=int,
-        default=1,
+        default=8,
         help="How many threads to use (can give good speed-ups with slow disks).",
     )
     args = parser.parse_args()

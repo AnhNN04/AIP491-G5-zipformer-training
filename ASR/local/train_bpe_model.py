@@ -10,6 +10,7 @@ def get_args():
     parser.add_argument(
         "--lang-dir",
         type=str,
+        default="data/lang_bpe_2000",
         help="""Input and output directory.
         The generated bpe.model is saved to this directory.
         """,
@@ -18,12 +19,14 @@ def get_args():
     parser.add_argument(
         "--transcript",
         type=str,
+        default="data/lang_bpe_2000/transcript_words.txt",
         help="Training transcript.",
     )
 
     parser.add_argument(
         "--vocab-size",
         type=int,
+        default=2000,
         help="Vocabulary size for BPE training",
     )
 
