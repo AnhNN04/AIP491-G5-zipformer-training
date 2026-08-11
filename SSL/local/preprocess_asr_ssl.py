@@ -1,4 +1,3 @@
-import argparse
 import logging
 import re
 import string
@@ -9,39 +8,14 @@ from icefall.utils import str2bool
 from lhotse import CutSet, SupervisionSegment
 from lhotse.recipes.utils import read_manifests_if_cached
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--lang",
-        type=str,
-        required=True,
-    )
 
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        required=True,
-    )
 
-    parser.add_argument(
-        "--src-dir",
-        type=str,
-        required=True,
-    )
-
-    parser.add_argument(
-        "--tgt-dir",
-        type=str,
-        required=True,
-    )
-    return parser.parse_args()
-
-def preprocess_asr_ssl(args):
-    src_dir = Path(args.src_dir)
-    output_dir = Path(args.tgt_dir)
+def preprocess_asr_ssl():
+    src_dir = Path("data/ssl_data")
+    output_dir = Path("data/ssl_data")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    dataset_parts = args.dataset.strip().split(" ", -1)
+    dataset_parts = ["ssl"]
 
     logging.info("Loading manifest...")
     manifests = read_manifests_if_cached(
@@ -77,8 +51,7 @@ def main():
     formatter = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=formatter, level=logging.INFO)
 
-    args = get_args()
-    preprocess_asr_ssl(args)
+    preprocess_asr_ssl()
 
 if __name__ == "__main__":
     main()
