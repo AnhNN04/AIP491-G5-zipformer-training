@@ -60,7 +60,7 @@ class AsrDataModule:
         group.add_argument(
             "--max-duration",
             type=int,
-            default=200.0,
+            default=300,
             help="Maximum pooled recordings duration (seconds) in a "
             "single batch. You can reduce it if it causes CUDA OOM.",
         )
@@ -158,7 +158,7 @@ class AsrDataModule:
         group.add_argument(
             "--enable-musan",
             type=str2bool,
-            default=True,
+            default=False,
             help="When enabled, select noise from MUSAN and mix it"
             "with training dataset. ",
         )

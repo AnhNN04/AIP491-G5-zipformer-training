@@ -25,7 +25,7 @@ from pathlib import Path
 import k2
 import torch
 from icefall.checkpoint import average_checkpoints_with_averaged_model, find_checkpoints
-from train import add_model_arguments, get_model, get_params
+from train import get_model, get_params
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -35,7 +35,7 @@ def get_parser():
     parser.add_argument(
         "--epoch",
         type=int,
-        default=30,
+        default=9,
         help="""It specifies the checkpoint to use for decoding.
         Note: Epoch counts from 1.
         You can specify --avg to use more checkpoints for model averaging.""",
@@ -54,7 +54,7 @@ def get_parser():
     parser.add_argument(
         "--avg",
         type=int,
-        default=9,
+        default=5,
         help="Number of checkpoints to average. Automatically select "
         "consecutive checkpoints before the checkpoint specified by "
         "'--epoch' and '--iter'",
@@ -70,7 +70,7 @@ def get_parser():
     parser.add_argument(
         "--tokens",
         type=str,
-        default="data/lang_bpe_500/tokens.txt",
+        default="data/lang_bpe_2000/tokens.txt",
         help="Path to the tokens.txt",
     )
 
@@ -80,8 +80,6 @@ def get_parser():
         default=2,
         help="The context size in the decoder. 1 means bigram; 2 means tri-gram",
     )
-
-    add_model_arguments(parser)
 
     return parser
 

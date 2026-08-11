@@ -127,20 +127,7 @@ This phase trains the model iteratively using pseudo-labels generated from unlab
   Train the initial ASR model on the 100h labeled corpus for 9 epochs:
   ```bash
   cd ASR
-  python zipformer/train.py \
-      --world-size 1 \
-      --num-epochs 9 \
-      --start-epoch 1 \
-      --use-fp16 1 \
-      --train-cuts 100h \
-      --manifest-dir data/fbank \
-      --bpe-model data/lang_bpe_2000/bpe.model \
-      --max-duration 300 \
-      --enable-musan 0 \
-      --exp-dir zipformer/exp \
-      --enable-spec-aug 1 \
-      --seed 1332 \
-      --master-port 12356
+  python3 zipformer/train.py
   ```
 * **Output Validation**:
   Verify ASR checkpoint `ASR/zipformer/exp/epoch-9.pt` is generated.

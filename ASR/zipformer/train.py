@@ -70,102 +70,7 @@ def set_batch_count(model: Union[nn.Module, DDP], batch_count: float) -> None:
         if hasattr(module, "name"):
             module.name = name
 
-def add_model_arguments(parser: argparse.ArgumentParser):
-    parser.add_argument(
-        "--num-encoder-layers",
-        type=str,
-        default="2,2,3,4,3,2",
-        help="Number of zipformer encoder layers per stack, comma separated.",
-    )
 
-    parser.add_argument(
-        "--downsampling-factor",
-        type=str,
-        default="1,2,4,8,4,2",
-        help="Downsampling factor for each stack of encoder layers.",
-    )
-
-    parser.add_argument(
-        "--feedforward-dim",
-        type=str,
-        default="512,768,1024,1536,1024,768",
-        help="Feedforward dimension of the zipformer encoder layers, per stack, comma separated.",
-    )
-
-    parser.add_argument(
-        "--num-heads",
-        type=str,
-        default="4,4,4,8,4,4",
-        help="Number of attention heads in the zipformer encoder layers: a single int or comma-separated list.",
-    )
-
-    parser.add_argument(
-        "--encoder-dim",
-        type=str,
-        default="192,256,384,512,384,256",
-        help="Embedding dimension in encoder stacks: a single int or comma-separated list.",
-    )
-
-    parser.add_argument(
-        "--query-head-dim",
-        type=str,
-        default="32",
-        help="Query/key dimension per head in encoder stacks: a single int or comma-separated list.",
-    )
-
-    parser.add_argument(
-        "--value-head-dim",
-        type=str,
-        default="12",
-        help="Value dimension per head in encoder stacks: a single int or comma-separated list.",
-    )
-
-    parser.add_argument(
-        "--pos-head-dim",
-        type=str,
-        default="4",
-        help="Positional-encoding dimension per head in encoder stacks: a single int or comma-separated list.",
-    )
-
-    parser.add_argument(
-        "--pos-dim",
-        type=int,
-        default="48",
-        help="Positional-encoding embedding dimension",
-    )
-
-    parser.add_argument(
-        "--encoder-unmasked-dim",
-        type=str,
-        default="192,192,256,256,256,192",
-        help="Unmasked dimensions in the encoders, relates to augmentation during training.  "
-        "A single int or comma-separated list.  Must be <= each corresponding encoder_dim.",
-    )
-
-    parser.add_argument(
-        "--cnn-module-kernel",
-        type=str,
-        default="31,31,15,15,15,31",
-        help="Sizes of convolutional kernels in convolution modules in each encoder stack: "
-        "a single int or comma-separated list.",
-    )
-
-    parser.add_argument(
-        "--decoder-dim",
-        type=int,
-        default=512,
-        help="Embedding dimension in the decoder model.",
-    )
-
-    parser.add_argument(
-        "--joiner-dim",
-        type=int,
-        default=512,
-        help="""Dimension used in the joiner model.
-        Outputs from the encoder and decoder model are projected
-        to this dimension before adding.
-        """,
-    )
 
     parser.add_argument(
         "--causal",
@@ -238,7 +143,7 @@ def get_parser():
     parser.add_argument(
         "--master-port",
         type=int,
-        default=12354,
+        default=12356,
         help="Master port to use for DDP training.",
     )
 
@@ -252,7 +157,7 @@ def get_parser():
     parser.add_argument(
         "--num-epochs",
         type=int,
-        default=30,
+        default=9,
         help="Number of epochs to train.",
     )
 
@@ -278,7 +183,7 @@ def get_parser():
     parser.add_argument(
         "--train-cuts",
         type=str,
-        default="2000h",
+        default="100h",
         help="""The experiment dir.
         It specifies the directory where all training related
         files, e.g., checkpoints, log, etc, are saved
@@ -305,7 +210,7 @@ def get_parser():
     parser.add_argument(
         "--bpe-model",
         type=str,
-        default="data/lang_bpe_500/bpe.model",
+        default="data/lang_bpe_2000/bpe.model",
         help="Path to the BPE model",
     )
 
@@ -387,7 +292,7 @@ def get_parser():
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
+        default=1332,
         help="The seed for random generators intended for reproducibility",
     )
 
@@ -445,11 +350,9 @@ def get_parser():
     parser.add_argument(
         "--use-fp16",
         type=str2bool,
-        default=False,
+        default=True,
         help="Whether to use half precision training.",
     )
-
-    add_model_arguments(parser)
 
     return parser
 
@@ -465,12 +368,24 @@ def get_params() -> AttributeDict:
             "batch_idx_train": 0,
             "log_interval": 50,
             "reset_interval": 200,
-            "valid_interval": 3000,                                
-                                      
+            "valid_interval": 3000,
             "feature_dim": 80,
-            "subsampling_factor": 4,                                 
+            "subsampling_factor": 4,
             "warm_step": 2000,
             "env_info": get_env_info(),
+            "num_encoder_layers": "2,2,3,4,3,2",
+            "downsampling_factor": "1,2,4,8,4,2",
+            "feedforward_dim": "512,768,1024,1536,1024,768",
+            "num_heads": "4,4,4,8,4,4",
+            "encoder_dim": "192,256,384,512,384,256",
+            "query_head_dim": "32",
+            "value_head_dim": "12",
+            "pos_head_dim": "4",
+            "pos_dim": 48,
+            "encoder_unmasked_dim": "192,192,256,256,256,192",
+            "cnn_module_kernel": "31,31,15,15,15,31",
+            "decoder_dim": 512,
+            "joiner_dim": 512,
         }
     )
 
