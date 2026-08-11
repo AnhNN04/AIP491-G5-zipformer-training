@@ -83,34 +83,34 @@ Before running any code, verify that the raw dataset is formatted correctly:
 * **Execution**:
   ```bash
   cd SSL
-  python3 local/asr_ssl.py --lang Vietnam -j 8 /dataset/viVoice-unlabeled-data data data/manifest_data
-  python3 local/preprocess_asr_ssl.py --lang Vietnam --dataset "data" --src-dir data/manifest_data --tgt-dir data/ssl_data
+  python3 local/asr_ssl.py
+  python3 local/preprocess_asr_ssl.py
   ```
 * **Output Validation**:
-  Ensure `SSL/data/ssl_data/capstone-ssl_cuts_data_raw.jsonl.gz` is created.
+  Ensure `SSL/data/ssl_data/capstone-ssl_cuts_ssl_raw.jsonl.gz` is created.
 
 ---
 
 ### Step 2.2: Lazy Sharding
 * **Execution**:
   ```bash
-  lhotse split-lazy data/ssl_data/capstone-ssl_cuts_data_raw.jsonl.gz data/ssl_data/data_split 200000
+  lhotse split-lazy data/ssl_data/capstone-ssl_cuts_ssl_raw.jsonl.gz data/ssl_data/data_split 200000
   ```
 * **Output Validation**:
   Ensure `SSL/data/ssl_data/data_split/` contains sharded files:
-  - `capstone-ssl_cuts_data_raw.00000000.jsonl.gz`
-  - `capstone-ssl_cuts_data_raw.00000001.jsonl.gz`
+  - `capstone-ssl_cuts_ssl_raw.00000000.jsonl.gz`
+  - `capstone-ssl_cuts_ssl_raw.00000001.jsonl.gz`
 
 ---
 
 ### Step 2.3: Parallel Feature Extraction
 * **Execution**:
   ```bash
-  python3 local/compute_fbank_asr_ssl_splits.py parallel --src-dir data/ssl_data --dataset data
+  python3 local/compute_fbank_asr_ssl_splits.py parallel
   ```
 * **Output Validation**:
   Ensure `SSL/data/ssl_data/data_split/` now contains completed cuts:
-  - `capstone-ssl_cuts_data.00000000.jsonl.gz`
+  - `capstone-ssl_cuts_ssl.00000000.jsonl.gz`
 
 ---
 
