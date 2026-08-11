@@ -29,7 +29,7 @@ from scaling import (
 )
 from torch import Tensor, nn
 
-class Zipformer2(EncoderInterface):
+class Zipformer(EncoderInterface):
 
     def __init__(
         self,
@@ -51,7 +51,7 @@ class Zipformer2(EncoderInterface):
         chunk_size: Tuple[int] = [-1],
         left_context_frames: Tuple[int] = [-1],
     ) -> None:
-        super(Zipformer2, self).__init__()
+        super(Zipformer, self).__init__()
 
         if dropout is None:
             dropout = ScheduledFloat((0.0, 0.3), (20000.0, 0.1))
@@ -91,7 +91,7 @@ class Zipformer2(EncoderInterface):
 
         num_encoders = len(downsampling_factor)
         for i in range(num_encoders):
-            encoder_layer = Zipformer2EncoderLayer(
+            encoder_layer = ZipformerEncoderLayer(
                 embed_dim=encoder_dim[i],
                 pos_dim=pos_dim,
                 num_heads=num_heads[i],
@@ -104,7 +104,7 @@ class Zipformer2(EncoderInterface):
                 causal=causal,
             )
 
-            encoder = Zipformer2Encoder(
+            encoder = ZipformerEncoder(
                 encoder_layer,
                 num_encoder_layers[i],
                 pos_dim=pos_dim,
@@ -115,7 +115,7 @@ class Zipformer2(EncoderInterface):
             )
 
             if downsampling_factor[i] != 1:
-                encoder = DownsampledZipformer2Encoder(
+                encoder = DownsampledZipformerEncoder(
                     encoder,
                     dim=encoder_dim[i],
                     downsample=downsampling_factor[i],
@@ -390,7 +390,7 @@ def _whitening_schedule(x: float, ratio: float = 2.0) -> ScheduledFloat:
 def _balancer_schedule(min_prob: float):
     return ScheduledFloat((0.0, 0.4), (8000.0, min_prob))
 
-class Zipformer2EncoderLayer(nn.Module):
+class ZipformerEncoderLayer(nn.Module):
 
     def __init__(
         self,
@@ -423,7 +423,7 @@ class Zipformer2EncoderLayer(nn.Module):
             (0.0, 0.5), (4000.0, 0.02), default=0
         ),
     ) -> None:
-        super(Zipformer2EncoderLayer, self).__init__()
+        super(ZipformerEncoderLayer, self).__init__()
         self.embed_dim = embed_dim
 
         self.bypass = BypassModule(
@@ -750,7 +750,7 @@ class Zipformer2EncoderLayer(nn.Module):
             cached_conv2,
         )
 
-class Zipformer2Encoder(nn.Module):
+class ZipformerEncoder(nn.Module):
 
     def __init__(
         self,
@@ -906,12 +906,12 @@ class BypassModule(nn.Module):
         bypass_scale = self._get_bypass_scale(src.shape[1])
         return src_orig + (src - src_orig) * bypass_scale
 
-class DownsampledZipformer2Encoder(nn.Module):
+class DownsampledZipformerEncoder(nn.Module):
 
     def __init__(
         self, encoder: nn.Module, dim: int, downsample: int, dropout: FloatLike
     ):
-        super(DownsampledZipformer2Encoder, self).__init__()
+        super(DownsampledZipformerEncoder, self).__init__()
         self.downsample_factor = downsample
         self.downsample = SimpleDownsample(dim, downsample, dropout)
         self.num_layers = encoder.num_layers
@@ -1739,7 +1739,7 @@ def _test_zipformer_main(causal: bool = False):
     batch_size = 5
     seq_len = 20
 
-    c = Zipformer2(
+    c = Zipformer(
         encoder_dim=(64, 96),
         encoder_unmasked_dim=(48, 64),
         num_heads=(4, 4),

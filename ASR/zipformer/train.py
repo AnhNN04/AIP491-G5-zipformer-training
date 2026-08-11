@@ -48,7 +48,7 @@ from torch.amp import GradScaler
          
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-from zipformer import Zipformer2
+from zipformer import Zipformer
 
 LRSchedulerType = Union[torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler]
 
@@ -498,7 +498,7 @@ def get_encoder_embed(params: AttributeDict) -> nn.Module:
     return encoder_embed
 
 def get_encoder_model(params: AttributeDict) -> nn.Module:
-    encoder = Zipformer2(
+    encoder = Zipformer(
         output_downsampling_factor=2,
         downsampling_factor=_to_int_tuple(params.downsampling_factor),
         num_encoder_layers=_to_int_tuple(params.num_encoder_layers),

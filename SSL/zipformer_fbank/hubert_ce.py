@@ -12,7 +12,7 @@ from scaling import ScheduledFloat
 from subsampling import Conv2dSubsampling
 from torch._C import device
 from utils import LayerNorm
-from zipformer import Zipformer2
+from zipformer import Zipformer
 
 def compute_mask_indices(
     shape: Tuple[int, int],
@@ -236,7 +236,7 @@ class HubertModel(nn.Module):
                 torch.FloatTensor(encoder_input_dim).uniform_()
             )
 
-        self.encoder = Zipformer2(
+        self.encoder = Zipformer(
             output_downsampling_factor=2 if self.final_downsample else 1,
             downsampling_factor=_to_int_tuple(cfg.downsampling_factor),
             num_encoder_layers=_to_int_tuple(cfg.num_encoder_layers),
