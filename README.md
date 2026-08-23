@@ -84,14 +84,14 @@ cd ASR
 Train the k-means model on a subset of unsupervised acoustic features (approx. 100 hours):
 ```bash
 cd SSL
-./scripts/learn_vietASR_kmeans.sh
+./scripts/learn_ASR_kmeans.sh
 ```
 
 ### 3. Extract Labels
 Generate discrete k-means targets for the unlabeled audio cuts:
 ```bash
 cd SSL
-./scripts/extract_vietASR_kmeans.sh
+./scripts/extract_ASR_kmeans.sh
 ```
 
 ### 4. Self-Supervised Pre-Training (SSL)
